@@ -1,0 +1,3 @@
+work_hours_per_week,overtime_hours,meetings_per_day,deadlines_missed,experience_years,job_role,work_mode,stress_level,work_life_balance,manager_support,job_satisfaction,social_support_score
+45,5,4,0,3,Software Engineer,Hybrid,5.5,6.0,7.0,6.0,6.5
+55,12,7,2,6,Product Manager,Onsite,7.5,3.5,4.0,5.0,4.5

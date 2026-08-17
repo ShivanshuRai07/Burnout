@@ -1,0 +1,55 @@
+{
+  "dataset": {
+    "total_rows": 178750,
+    "labeled_rows": 174626,
+    "features_used": [
+      "caffeine_intake",
+      "company_size",
+      "deadlines_missed",
+      "experience_years",
+      "job_role",
+      "job_satisfaction",
+      "manager_support",
+      "meeting_load",
+      "meetings_per_day",
+      "overtime_hours",
+      "physical_activity_days",
+      "screen_time_hours",
+      "sleep_hours",
+      "social_support_score",
+      "support_index",
+      "wellness_score",
+      "work_hours_per_week",
+      "work_life_balance",
+      "work_mode",
+      "workload_index"
+    ]
+  },
+  "regression_models": {
+    "ridge": {
+      "mae": 0.6335,
+      "rmse": 0.8711,
+      "r2": 0.688
+    },
+    "random_forest": {
+      "mae": 0.6035,
+      "rmse": 0.8266,
+      "r2": 0.7191
+    },
+    "hist_gradient_boosting": {
+      "mae": 0.5632,
+      "rmse": 0.7784,
+      "r2": 0.7509
+    },
+    "xgboost": {
+      "mae": 0.5628,
+      "rmse": 0.7808,
+      "r2": 0.7494
+    }
+  },
+  "recommended_model": "hist_gradient_boosting",
+  "risk_model": {
+    "threshold": 4.5,
+    "risk_quantile": 0.9
+  }
+}

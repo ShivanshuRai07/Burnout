@@ -1,0 +1,30 @@
+feature,gain_importance
+numeric__stress_level,0.5270983
+numeric__work_hours_per_week,0.11727302
+numeric__work_life_balance,0.08566271
+numeric__manager_support,0.048580814
+numeric__overtime_hours,0.03748032
+numeric__social_support_score,0.021014834
+numeric__physical_activity_days,0.018600501
+numeric__screen_time_hours,0.00885115
+numeric__job_satisfaction,0.008576877
+numeric__sleep_hours,0.0074876896
+categorical__job_role_Data Scientist,0.0071011432
+categorical__work_mode_Hybrid,0.006777513
+categorical__work_mode_Remote,0.006774291
+categorical__company_size_Mid-size,0.006725654
+categorical__company_size_MNC,0.0066468148
+categorical__job_role_Product Manager,0.0066237017
+categorical__job_role_Backend Developer,0.006623682
+categorical__company_size_Startup,0.006558577
+categorical__work_mode_Onsite,0.006479563
+categorical__job_role_DevOps,0.0064428416
+numeric__meetings_per_day,0.006372609
+categorical__job_role_Software Engineer,0.0063010445
+categorical__company_size_Large,0.0062991716
+numeric__experience_years,0.0062552057
+categorical__job_role_Frontend Developer,0.006177143
+categorical__job_role_ML Engineer,0.0061270343
+categorical__job_role_QA Engineer,0.0060293362
+numeric__deadlines_missed,0.004817884
+numeric__caffeine_intake,0.0042405534

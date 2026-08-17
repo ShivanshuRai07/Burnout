@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce Analytics | People Operations Platform</title>
+<meta name="description" content="Enterprise workforce burnout analytics: upload HR data for AI-powered risk analysis, role breakdowns, India state heatmap, and employee table.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --navy:       #0f2d56;
+  --navy-hover: #0a2040;
+  --blue:       #1a6fc4;
+  --blue-light: #2781dc;
+  --blue-pale:  #e8f1fb;
+  --bg:         #f4f6f9;
+  --surface:    #ffffff;
+  --border:     #dde3ea;
+  --border-2:   #c8d2dc;
+  --text:       #1c2b3a;
+  --text-2:     #4a5c6d;
+  --muted:      #7a8fa0;
+  --green:      #1a8a50;
+  --green-pale: #eaf5ee;
+  --amber:      #b95f00;
+  --amber-pale: #fff4e5;
+  --red:        #c0392b;
+  --red-pale:   #fdf0ef;
+  --purple:     #6d28d9;
+  --radius:     4px;
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+  --shadow:     0 2px 8px rgba(0,0,0,.09),0 1px 3px rgba(0,0,0,.06);
+  --shadow-md:  0 4px 16px rgba(0,0,0,.1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,sans-serif;font-size:14px;background:var(--bg);color:var(--text);line-height:1.5}
+
+/* ── TOPNAV ── */
+.topnav{background:var(--navy);position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.topnav-inner{max-width:1380px;margin:0 auto;padding:0 28px;display:flex;align-items:center;height:56px;gap:32px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff;flex-shrink:0}
+.brand-icon{width:30px;height:30px;background:var(--blue-light);border-radius:4px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff}
+.brand-name{font-size:14px;font-weight:600;color:#fff;letter-spacing:-.2px}
+.brand-div{width:1px;height:20px;background:rgba(255,255,255,.2)}
+.nav-links{display:flex;align-items:center;gap:2px;flex:1}
+.nav-links a{display:flex;align-items:center;gap:6px;padding:0 14px;height:56px;color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;font-weight:500;border-bottom:3px solid transparent;transition:color .15s,border-color .15s;position:relative}
+.nav-links a:hover{color:#fff}
+.nav-links a.active{color:#fff;border-bottom-color:#5eabf0}
+.nav-badge{position:absolute;top:12px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#e74c3c;color:#fff;font-size:9px;font-weight:700;display:none;place-items:center;line-height:16px;text-align:center}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.server-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(255,255,255,.1);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.15)}
+.server-pill .dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── LAYOUT ── */
+.page{max-width:1380px;margin:0 auto;padding:28px 28px 60px}
+.page-header{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 26px;margin-bottom:22px;box-shadow:var(--shadow-sm);display:flex;justify-content:space-between;align-items:center;gap:16px}
+.page-header-left h1{font-size:20px;font-weight:700;color:var(--navy);letter-spacing:-.3px}
+.page-header-left p{font-size:13px;color:var(--text-2);margin-top:4px}
+.crumb{font-size:11px;color:var(--muted);margin-bottom:5px}
+.crumb span{color:var(--blue)}
+.section{margin-bottom:28px}
+.section-title{font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── CARD ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card-header h3{font-size:13px;font-weight:700;color:var(--navy)}
+.card-header p{font-size:12px;color:var(--text-2);margin-top:2px}
+.card-body{padding:20px}
+
+/* ── KPI ── */
+.kpi-strip,.res-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.kpi,.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-sm)}
+.kpi{border-left:4px solid transparent;transition:box-shadow .2s}
+.kpi:hover{box-shadow:var(--shadow-md)}
+.kpi.navy{border-left-color:var(--navy)}.kpi.blue{border-left-color:var(--blue)}.kpi.amber{border-left-color:var(--amber)}.kpi.red{border-left-color:var(--red)}
+.kpi-label,.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.kpi-value,.stat-val{font-size:28px;font-weight:700;letter-spacing:-.5px;line-height:1;color:var(--navy);margin-bottom:5px}
+.stat-val{font-size:24px;letter-spacing:-.3px;margin-bottom:0}
+.kpi.blue .kpi-value,.stat-val.blue{color:var(--blue)}.kpi.amber .kpi-value,.stat-val.amber{color:var(--amber)}.kpi.red .kpi-value,.stat-val.red{color:var(--red)}
+.kpi-sub,.stat-sub{font-size:11px;color:var(--muted)}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px}
+
+/* ── BANDS ── */
+.band-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.band-box{border-radius:var(--radius);padding:14px 16px;text-align:center;border:1px solid transparent}
+.band-box.low{background:var(--green-pale);border-color:#c0e5cf}.band-box.moderate{background:var(--amber-pale);border-color:#fad9a8}.band-box.elevated{background:var(--red-pale);border-color:#f0c8c4}
+.band-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.band-box.low .band-lbl{color:var(--green)}.band-box.moderate .band-lbl{color:var(--amber)}.band-box.elevated .band-lbl{color:var(--red)}
+.band-cnt{font-size:22px;font-weight:700;color:var(--navy)}.band-pct{font-size:11px;color:var(--text-2);margin-top:2px}
+
+/* ── UPLOAD ── */
+.upload-layout{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.upload-left{padding:24px;border-right:1px solid var(--border)}
+.upload-right{padding:24px}
+.upload-left h3{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.upload-left p{font-size:12px;color:var(--text-2);line-height:1.6;margin-bottom:10px}
+.col-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px}
+.col-pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{font-size:10px;font-weight:600;padding:3px 8px;border-radius:3px;background:var(--blue-pale);border:1px solid #bcd5f0;color:var(--blue);font-family:'Courier New',monospace}
+.pill.opt{background:#f1f5f9;border-color:var(--border-2);color:var(--text-2)}
+.file-zone{border:2px dashed var(--border-2);border-radius:var(--radius);padding:30px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;background:#fafbfc}
+.file-zone:hover,.file-zone.drag{border-color:var(--blue);background:var(--blue-pale)}
+.file-zone input[type=file]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.drop-ico{font-size:28px;margin-bottom:8px}.drop-ttl{font-size:13px;font-weight:600;color:var(--navy)}.drop-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.file-sel{margin-top:10px;font-size:12px;font-weight:600;color:var(--blue);display:none}
+.form-actions{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.btn{width:100%;padding:10px 16px;border:none;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s}
+.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover:not(:disabled){background:var(--navy-hover)}.btn-primary:disabled{background:#c4cdd6;cursor:not-allowed;color:#8a9aaa}
+.alert{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:var(--radius);font-size:12px;line-height:1.5}
+.alert.neutral{background:#f4f6f9;color:var(--text-2)}.alert.success{background:var(--green-pale);color:var(--green);border:1px solid #c0e5cf}.alert.error{background:var(--red-pale);color:var(--red);border:1px solid #f0c8c4}.alert.info{background:var(--blue-pale);color:var(--blue);border:1px solid #bcd5f0}
+.alert .ico{flex-shrink:0;font-size:14px}
+.privacy-line{font-size:11px;color:var(--muted);text-align:center}
+
+/* ── RESULTS ── */
+.results-section{margin-top:22px;animation:fadeUp .35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.field-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.fpill{font-size:10px;font-weight:600;padding:3px 7px;border-radius:3px;font-family:'Courier New',monospace}
+.fpill.present{background:var(--green-pale);border:1px solid #c0e5cf;color:var(--green)}.fpill.missing{background:var(--amber-pale);border:1px solid #fad9a8;color:var(--amber)}
+.chart-wrap{position:relative}
+
+/* ── DATA TABLE ── */
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{background:#f4f6f9;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap}
+.data-table th.sortable{cursor:pointer;user-select:none}
+.data-table th.sortable:hover{color:var(--navy)}
+.data-table th .sort-ico{margin-left:4px;opacity:.4;font-style:normal}
+.data-table th.sort-asc .sort-ico::after{content:'↑';opacity:1}.data-table th.sort-desc .sort-ico::after{content:'↓';opacity:1}
+.data-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}.data-table tr:hover td{background:#fafbfc}
+.risk-chip{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600}
+.risk-chip.Low{background:var(--green-pale);color:var(--green)}.risk-chip.Moderate{background:var(--amber-pale);color:var(--amber)}.risk-chip.Elevated{background:var(--red-pale);color:var(--red)}
+
+/* ── TAB BAR ── */
+.tab-bar{display:flex;gap:2px;padding:14px 20px 0;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap}
+.tab-btn{padding:8px 16px;font-size:12px;font-weight:600;color:var(--muted);border:none;border-bottom:3px solid transparent;background:transparent;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;margin-bottom:-1px}
+.tab-btn:hover{color:var(--navy)}.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}.tab-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── BREAKDOWN ── */
+.breakdown-layout{display:grid;grid-template-columns:1.4fr 1fr;gap:0}
+.breakdown-chart{padding:20px;border-right:1px solid var(--border)}
+.breakdown-table{padding:20px;overflow-y:auto;max-height:420px}
+
+
+
+/* ── EMPLOYEE TABLE SECTION ── */
+.table-filter-bar{display:flex;gap:8px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tf-search{flex:1;min-width:160px;position:relative}
+.tf-search input{width:100%;padding:8px 10px 8px 32px;border:1px solid var(--border-2);border-radius:var(--radius);font-family:inherit;font-size:12px;color:var(--text);background:#fff}
+.tf-search input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,111,196,.1)}
+.tf-search .sico{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none}
+.tf-select{padding:8px 28px 8px 10px;border:1px solid var(--border-2);border-radius:var(--radius);font-family:inherit;font-size:12px;color:var(--text);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8fa0'/%3E%3C/svg%3E") no-repeat right 8px center;-webkit-appearance:none;appearance:none;cursor:pointer;min-width:120px}
+.tf-select:focus{outline:none;border-color:var(--blue)}
+.btn-export{padding:8px 14px;background:var(--green-pale);color:var(--green);border:1px solid #c0e5cf;border-radius:var(--radius);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.btn-export:hover{background:#d7eed6}
+.btn-reset{padding:8px 12px;background:#f4f6f9;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:12px;cursor:pointer;transition:background .15s}
+.btn-reset:hover{background:#e9ecf0}
+.table-wrap{overflow-x:auto}
+.table-info{font-size:12px;color:var(--muted);padding:10px 20px;border-bottom:1px solid var(--border)}
+.pagination{display:flex;align-items:center;gap:6px;padding:12px 20px;border-top:1px solid var(--border)}
+.pag-btn{padding:5px 10px;border:1px solid var(--border-2);border-radius:var(--radius);background:#fff;font-family:inherit;font-size:12px;cursor:pointer;color:var(--text-2);transition:background .1s,color .1s}
+.pag-btn:hover:not(:disabled){background:var(--blue-pale);border-color:var(--blue);color:var(--blue)}
+.pag-btn:disabled{opacity:.4;cursor:not-allowed}.pag-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pag-info{font-size:12px;color:var(--muted);margin-left:auto}
+.page-size-sel{padding:4px 8px;border:1px solid var(--border-2);border-radius:var(--radius);font-family:inherit;font-size:12px;background:#fff;color:var(--text)}
+.table-empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.table-empty .ico{font-size:32px;margin-bottom:10px}
+
+/* ── FLOATING CORNER SIMULATION TAB & MODAL ── */
+.sim-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 990;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  background: var(--navy);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 30px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(15,45,86,.35);
+  transition: transform .2s, background .2s, box-shadow .2s;
+}
+.sim-fab:hover {
+  background: var(--navy-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(15,45,86,.5);
+}
+.fab-icon { font-size: 16px; color: #f59e0b; }
+.fab-badge { font-size: 10px; padding: 2px 7px; background: rgba(255,255,255,.18); border-radius: 10px; font-weight: 600; color: #60a5fa; }
+
+/* Modal overlay & dialog */
+.sim-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 45, 86, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  place-items: center;
+  padding: 20px;
+  animation: fadeIn .2s ease;
+}
+.sim-modal-overlay.open { display: grid; }
+.sim-modal-dialog {
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.3);
+  width: 100%;
+  max-width: 980px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp .25s cubic-bezier(.16,1,.3,1);
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideUp { from{transform:translateY(24px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+.sim-modal-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+.sim-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: var(--muted);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  transition: background .15s, color .15s;
+}
+.sim-modal-close:hover { background: var(--border); color: var(--navy); }
+.sim-modal-body { overflow-y: auto; padding: 0; }
+
+/* ── SCENARIO LAYOUT (Inside Modal) ── */
+.scenario-layout{display:grid;grid-template-columns:1fr 1.3fr;gap:0}
+.sc-left{padding:24px;border-right:1px solid var(--border);background:#fff}
+.sc-right{padding:24px;background:#fafbfc}
+.sc-left h3{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.sc-left p{font-size:12px;color:var(--text-2);margin-bottom:16px;line-height:1.5}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row{display:flex;flex-direction:column;gap:5px}
+.form-row label{font-size:11px;font-weight:600;color:var(--text-2)}
+.slider-wrap{display:flex;align-items:center;gap:8px}
+input[type=range]{flex:1;accent-color:var(--navy);cursor:pointer}
+.sval{min-width:32px;font-size:12px;font-weight:700;color:var(--navy);text-align:right}
+select{width:100%;padding:8px 10px;border:1px solid var(--border-2);border-radius:var(--radius);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8fa0'/%3E%3C/svg%3E") no-repeat right 10px center;color:var(--text);font-family:inherit;font-size:13px;cursor:pointer;appearance:none}
+select:focus{outline:2px solid var(--blue);outline-offset:-1px}
+.full2{grid-column:span 2}
+.btn-run{grid-column:span 2;padding:11px;border:none;border-radius:var(--radius);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-run:hover{background:var(--navy-hover)}
+
+/* ── RESULT DISPLAY ── */
+.result-display{display:flex;flex-direction:column;justify-content:center;height:100%;min-height:260px}
+.result-empty{text-align:center;color:var(--muted)}.result-empty .ico{font-size:36px;margin-bottom:10px}.result-empty p{font-size:13px}
+.result-band-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.band-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:3px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.band-chip.Low{background:var(--green-pale);color:var(--green);border:1px solid #c0e5cf}.band-chip.Moderate{background:var(--amber-pale);color:var(--amber);border:1px solid #fad9a8}.band-chip.Elevated{background:var(--red-pale);color:var(--red);border:1px solid #f0c8c4}
+.result-score-big{font-size:54px;font-weight:700;letter-spacing:-1px;color:var(--navy);line-height:1;margin-bottom:5px}
+.result-score-big .of10{font-size:22px;font-weight:400;color:var(--muted)}
+.result-prob-line{font-size:13px;color:var(--text-2);margin-bottom:16px}
+.result-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.rm-box{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}
+.rm-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}.rm-val{font-size:18px;font-weight:700;color:var(--navy)}
+.result-notice{font-size:11px;color:var(--text-2);background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;line-height:1.5}
+
+/* ── SEARCH ── */
+.search-bar{display:flex;gap:10px;align-items:center;padding:20px}
+.search-input-wrap{flex:1;position:relative}
+.search-input-wrap input[type=text]{width:100%;padding:10px 14px 10px 38px;border:1px solid var(--border-2);border-radius:var(--radius);font-family:inherit;font-size:13px;color:var(--text);background:#fff;transition:border-color .15s,box-shadow .15s}
+.search-input-wrap input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,111,196,.12)}
+.search-input-wrap .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
+.btn-search{padding:10px 22px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;white-space:nowrap;flex-shrink:0}
+.btn-search:hover{background:#155fa8}
+
+/* ── EMPLOYEE PROFILE ── */
+.emp-profile{padding:0 20px 20px;animation:fadeUp .3s ease}
+.emp-profile-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:linear-gradient(135deg,var(--navy) 0%,#1a4a8a 100%);border-radius:var(--radius);color:#fff}
+.emp-avatar{width:48px;height:48px;background:rgba(255,255,255,.15);border-radius:50%;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.emp-name{font-size:16px;font-weight:700;margin-bottom:3px}
+.emp-meta{font-size:12px;color:rgba(255,255,255,.7);display:flex;gap:12px;flex-wrap:wrap}
+.emp-meta span::before{content:'• '}.emp-meta span:first-child::before{content:''}
+.emp-score-row{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:16px}
+.emp-score-display{display:flex;align-items:baseline;gap:8px}
+.emp-score-num{font-size:52px;font-weight:700;letter-spacing:-2px;line-height:1}
+.emp-score-num.Low{color:var(--green)}.emp-score-num.Moderate{color:var(--amber)}.emp-score-num.Elevated{color:var(--red)}
+.emp-score-sub{font-size:13px;color:var(--muted)}
+.emp-gauge{text-align:center;flex-shrink:0}
+.emp-gauge-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.gauge-ring{width:80px;height:80px;border-radius:50%;display:grid;place-items:center;position:relative;margin:0 auto 4px}
+.gauge-ring::after{content:'';width:58px;height:58px;border-radius:50%;background:#fff;position:absolute}
+.gauge-val{position:absolute;z-index:1;font-size:14px;font-weight:700;color:var(--navy)}
+.gauge-sub{font-size:10px;color:var(--muted)}
+.emp-params{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.emp-param-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}
+.ep-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.ep-val{font-size:14px;font-weight:700;color:var(--navy)}
+.btn-load-scenario{padding:9px 18px;background:var(--blue-pale);color:var(--blue);border:1px solid #bcd5f0;border-radius:var(--radius);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-load-scenario:hover{background:#d0e8f8}
+
+/* ── MISC ── */
+.caution{display:flex;gap:10px;padding:12px 14px;background:var(--amber-pale);border:1px solid #fad9a8;border-radius:var(--radius);font-size:12px;color:#7a3f00;line-height:1.5;margin-bottom:16px}
+.caution .ico{flex-shrink:0;font-size:16px}
+.sep{border:none;border-top:1px solid var(--border);margin:28px 0}
+.site-footer{background:var(--navy);color:rgba(255,255,255,.6);font-size:11px;padding:14px 28px;text-align:center;margin-top:40px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(26,111,196,.3);border-top-color:var(--blue);border-radius:50%;animation:spinning .7s linear infinite;vertical-align:middle}
+@keyframes spinning{to{transform:rotate(360deg)}}
+.notice-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius);background:var(--blue-pale);color:var(--blue);border:1px solid #bcd5f0;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s}
+.notice-chip:hover{background:#d4e8f9}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.kpi-strip,.res-kpi{grid-template-columns:repeat(2,1fr)}.emp-params{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.g2,.upload-layout,.scenario-layout,.breakdown-layout,.india-map-wrap{grid-template-columns:1fr}.upload-left,.sc-left,.breakdown-chart,.india-map-left{border-right:none;border-bottom:1px solid var(--border)}.table-filter-bar{flex-direction:column;align-items:stretch}}
+@media(max-width:640px){.page{padding:16px}.kpi-strip,.res-kpi{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}.btn-run,.full2{grid-column:1}.band-strip{grid-template-columns:1fr}.search-bar{flex-direction:column}.btn-search,.btn-export,.btn-reset{width:100%}.emp-params{grid-template-columns:repeat(2,1fr)}.sim-fab .fab-label{display:none}}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOP NAVIGATION ═══ -->
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="brand" href="#overview">
+      <div class="brand-icon">W</div>
+      <div class="brand-div"></div>
+      <span class="brand-name">Workforce Analytics</span>
+    </a>
+    <div class="nav-links">
+      <a href="#file-analysis"  id="nav-upload"  class="active">File Analysis</a>
+      <a href="#employee-review" id="nav-review">Employee Review</a>
+      <a href="#employee-table-section" id="nav-table" style="position:relative">
+        Employee Table
+        <span class="nav-badge" id="table-badge">0</span>
+      </a>
+    </div>
+    <div class="nav-right">
+      <button onclick="openSimModal()" style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s">
+        <span style="color:#f59e0b">⚡</span> Simulator
+      </button>
+      <div class="server-pill" id="server-status">
+        <div class="dot"></div><span>ML Engine Active</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="page">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <p class="crumb">People Operations / <span>Wellbeing Analytics</span></p>
+      <h1>Workforce Wellbeing Overview</h1>
+      <p>Upload HR data to analyse burnout risk across roles, geography, demographics, and work patterns.</p>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Reporting period</div>
+      <div style="font-size:13px;font-weight:600;color:var(--navy)">Current workforce snapshot</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Internal use only</div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════ FILE ANALYSIS ══════════════════════ -->
+  <section id="file-analysis" class="section">
+    <div class="section-title">Company File Analysis</div>
+
+    <div class="card">
+      <div class="card-header">
+        <div><h3>Upload Workforce Data</h3><p>Upload your HR export as CSV for a private, locally-processed analysis</p></div>
+        <span style="font-size:11px;padding:3px 9px;background:var(--blue-pale);color:var(--blue);border:1px solid #bcd5f0;border-radius:3px;font-weight:600">Administrator Access</span>
+      </div>
+      <div class="upload-layout">
+        <div class="upload-left">
+          <h3>Data requirements</h3>
+          <p>Files are streamed and analysed locally — never transmitted externally. Supports up to 1,000,000 employee rows.</p>
+          <div class="col-label">Required columns</div>
+          <div class="col-pills">
+            <span class="pill">work_hours_per_week</span><span class="pill">overtime_hours</span><span class="pill">meetings_per_day</span>
+            <span class="pill">deadlines_missed</span><span class="pill">experience_years</span><span class="pill">job_role</span><span class="pill">work_mode</span>
+          </div>
+          <div class="col-label">Optional — enable breakdowns &amp; India map</div>
+          <div class="col-pills">
+            <span class="pill opt">gender</span><span class="pill opt">city</span><span class="pill opt">state</span>
+            <span class="pill opt">employee_id</span><span class="pill opt">stress_level</span><span class="pill opt">sleep_hours</span>
+            <span class="pill opt">job_satisfaction</span><span class="pill opt">manager_support</span><span class="pill opt">work_life_balance</span>
+            <span class="pill opt">company_size</span><span class="pill opt">social_support_score</span>
+          </div>
+        </div>
+        <div class="upload-right">
+          <div class="file-zone" id="file-drop">
+            <input type="file" id="upload-file" accept=".csv,text/csv">
+            <div class="drop-ico">📄</div>
+            <div class="drop-ttl">Drag &amp; drop CSV file here</div>
+            <div class="drop-sub">or click to browse your computer</div>
+            <div class="file-sel" id="file-sel"></div>
+          </div>
+          <div class="form-actions">
+            <div class="alert neutral" id="upload-status">
+              <span class="ico">○</span><span>Select a valid CSV file to continue.</span>
+            </div>
+            <button class="btn btn-primary" id="analyse-btn" disabled>Analyse Company File</button>
+            <div class="privacy-line">🔒 Files are processed locally and are not retained by this service.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RESULTS ── -->
+    <div id="analysis-results" class="results-section" style="display:none">
+      <div class="section-title" style="margin-top:24px">Analysis Results</div>
+
+      <div class="res-kpi">
+        <div class="stat-box"><div class="stat-label">Employees Scored</div><div class="stat-val" id="res-employees">—</div><div class="stat-sub">Records processed</div></div>
+        <div class="stat-box"><div class="stat-label">Avg. Burnout Score</div><div class="stat-val blue" id="res-burnout">—</div><div class="stat-sub">0–10 scale</div></div>
+        <div class="stat-box"><div class="stat-label">Elevated Review Rate</div><div class="stat-val red" id="res-elevated">—</div><div class="stat-sub">Above threshold</div></div>
+        <div class="stat-box"><div class="stat-label">Avg. Elevated Probability</div><div class="stat-val amber" id="res-probability">—</div><div class="stat-sub">Model confidence</div></div>
+      </div>
+
+      <!-- Data coverage -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <div><h3>Data Coverage</h3><p>Fields detected · Green = present, Amber = defaulted to model median</p></div>
+          <span class="stat-val" id="res-completeness" style="font-size:13px">—</span>
+        </div>
+        <div class="card-body">
+          <div class="field-pills" id="res-fields"></div>
+          <div style="margin-top:12px" id="table-notice"></div>
+        </div>
+      </div>
+
+      <!-- Risk + Roles row -->
+      <div class="g2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-header"><div><h3>Risk Band Distribution</h3><p>Employee count per predicted risk band</p></div></div>
+          <div class="card-body">
+            <div class="band-strip" id="res-band-cards" style="margin-bottom:16px"></div>
+            <div class="chart-wrap"><canvas id="chart-res-risk"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><h3>Burnout Score by Role</h3><p>Roles ranked by average predicted burnout</p></div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chart-res-roles"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Role table -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div><h3>Elevated Review Rate by Role</h3><p>% of employees flagged for elevated risk per role</p></div></div>
+        <div class="card-body">
+          <table class="data-table">
+            <thead><tr><th>Job Role</th><th>Employees</th><th>Avg. Score</th><th>Elevated Rate</th><th>Risk Level</th></tr></thead>
+            <tbody id="res-role-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Categorical breakdowns (tabbed) -->
+      <div class="card" id="breakdown-panel" style="margin-bottom:16px">
+        <div class="card-header"><div><h3>Demographic &amp; Workload Risk Breakdowns</h3><p>Switch categories to explore burnout patterns</p></div></div>
+        <div class="tab-bar" id="breakdown-tabs">
+          <button class="tab-btn active" data-tab="work_mode"  id="tab-work_mode">Work Mode</button>
+          <button class="tab-btn"         data-tab="duration"   id="tab-duration">Work Duration</button>
+          <button class="tab-btn"         data-tab="gender"     id="tab-gender"   disabled>Gender</button>
+          <button class="tab-btn"         data-tab="location"   id="tab-location" disabled>Geography</button>
+        </div>
+        <div class="breakdown-layout">
+          <div class="breakdown-chart"><canvas id="chart-breakdown" height="280"></canvas></div>
+          <div class="breakdown-table">
+            <table class="data-table">
+              <thead><tr><th id="breakdown-col-name">Category</th><th>Employees</th><th>Avg. Score</th><th>Elevated %</th><th>Risk</th></tr></thead>
+              <tbody id="breakdown-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+
+
+      <div class="caution">
+        <span class="ico">⚠</span>
+        <span><strong>Decision-support only.</strong> This analysis is generated by a machine learning model for supportive workforce planning. It must not be used for adverse employment decisions.</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- ══════════════════════ EMPLOYEE REVIEW ══════════════════════ -->
+  <section id="employee-review" class="section">
+    <div class="section-title">Employee Review</div>
+    <div class="caution">
+      <span class="ico">ℹ</span>
+      <span>For supportive HR planning only. Do not use for performance reviews, pay decisions, or employment actions.</span>
+    </div>
+
+    <!-- Employee Search -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div><h3>Employee Burnout Search</h3><p>Enter an Employee ID to retrieve predicted burnout score and risk assessment</p></div>
+        <span style="font-size:11px;padding:3px 9px;background:#f3f0ff;color:var(--purple);border:1px solid #d4c8f9;border-radius:3px;font-weight:600">ID Lookup</span>
+      </div>
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="emp-search-input" placeholder="Enter Employee ID (e.g. EM1, tech_0)" autocomplete="off">
+        </div>
+        <button class="btn-search" id="emp-search-btn">Search Employee</button>
+      </div>
+      <div id="emp-search-status" style="padding:0 20px 14px;display:none">
+        <div class="alert" id="emp-search-alert"></div>
+      </div>
+      <div id="emp-profile-wrap" style="display:none">
+        <div style="border-top:1px solid var(--border)"></div>
+        <div class="emp-profile" id="emp-profile"></div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- ══════════════════════ EMPLOYEE TABLE ══════════════════════ -->
+  <section id="employee-table-section" class="section">
+    <div class="section-title">Employee Table</div>
+    <div class="card">
+      <div class="card-header">
+        <div><h3>Full Employee Burnout Records</h3><p>Filterable, sortable, paginated view of all employees — upload a CSV file first</p></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--muted)" id="table-total-badge"></span>
+          <button class="btn-export" id="export-csv-btn" disabled onclick="exportTableCSV()">⬇ Export CSV</button>
+        </div>
+      </div>
+
+      <div id="table-no-data" class="table-empty">
+        <div class="ico">📂</div>
+        <p>Upload a company CSV file in the <strong>File Analysis</strong> section to populate this table.</p>
+      </div>
+
+      <div class="table-filter-bar" id="table-filter-bar" style="display:none">
+        <div class="tf-search">
+          <span class="sico">🔍</span>
+          <input type="text" id="tf-search" placeholder="Search by Employee ID…" oninput="debounceFilter()">
+        </div>
+        <select class="tf-select" id="tf-band" onchange="applyFilters()">
+          <option value="">All Risk Bands</option>
+          <option>Low</option><option>Moderate</option><option>Elevated</option>
+        </select>
+        <select class="tf-select" id="tf-role" onchange="applyFilters()"><option value="">All Roles</option></select>
+        <select class="tf-select" id="tf-mode" onchange="applyFilters()"><option value="">All Modes</option></select>
+        <input type="text" class="tf-select" id="tf-city" placeholder="Filter by city…" oninput="debounceFilter()" style="min-width:110px">
+        <button class="btn-reset" onclick="resetFilters()">Reset</button>
+      </div>
+
+      <div id="table-data-wrap" style="display:none">
+        <div class="table-info" id="table-info">—</div>
+        <div class="table-wrap">
+          <table class="data-table" id="emp-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-col="id">Emp ID <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="role">Role <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="mode">Work Mode <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="city">City <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="state">State <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="gender">Gender <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="hours">Hours/Wk <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="stress">Stress <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="overtime">OT Hrs <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="experience">Exp (Yrs) <i class="sort-ico"></i></th>
+                <th class="sortable sort-desc" data-col="score">Score <i class="sort-ico"></i></th>
+                <th class="sortable" data-col="prob">Risk Prob <i class="sort-ico"></i></th>
+                <th>Band</th>
+              </tr>
+            </thead>
+            <tbody id="table-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination-bar">
+          <button class="pag-btn" id="pag-prev" onclick="goPage(TABLE.page-1)">‹ Prev</button>
+          <span id="pag-pages"></span>
+          <button class="pag-btn" id="pag-next" onclick="goPage(TABLE.page+1)">Next ›</button>
+          <div class="pag-info">
+            Rows per page:
+            <select class="page-size-sel" id="page-size-sel" onchange="changePageSize()">
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ══════════════════════ FLOATING SIMULATION CORNER FAB ══════════════════════ -->
+<button class="sim-fab" id="sim-fab-btn" onclick="openSimModal()">
+  <span class="fab-icon">⚡</span>
+  <span class="fab-label">Scenario Simulator</span>
+  <span class="fab-badge">ML Tool</span>
+</button>
+
+<!-- ══════════════════════ SIMULATION MODAL OVERLAY ══════════════════════ -->
+<div class="sim-modal-overlay" id="sim-modal-overlay" onclick="closeSimModal(event)">
+  <div class="sim-modal-dialog" onclick="event.stopPropagation()">
+    <div class="sim-modal-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:22px">⚡</span>
+        <div>
+          <h3 style="font-size:15px;font-weight:700;color:var(--navy)">Workload &amp; Wellbeing Assessment</h3>
+          <p style="font-size:11px;color:var(--muted)">Adjust parameters to simulate burnout risk and evaluate HR interventions</p>
+        </div>
+      </div>
+      <button class="sim-modal-close" onclick="closeSimModal()">&times;</button>
+    </div>
+    <div class="sim-modal-body">
+      <div class="scenario-layout">
+        <div class="sc-left" id="scenario-left">
+          <h3>Input Parameters</h3>
+          <p>Adjust the sliders and dropdowns below to reflect the workplace situation.</p>
+          <form id="scenario-form" class="form-grid">
+            <div class="form-row"><label>Stress Level</label><div class="slider-wrap"><input type="range" name="stress_level" min="1" max="10" value="5" step="0.1" id="sl-stress"><span class="sval" id="sv-stress">5.0</span></div></div>
+            <div class="form-row"><label>Weekly Work Hours</label><div class="slider-wrap"><input type="range" name="work_hours_per_week" min="25" max="80" value="40" step="1" id="sl-hours"><span class="sval" id="sv-hours">40</span></div></div>
+            <div class="form-row"><label>Work–Life Balance</label><div class="slider-wrap"><input type="range" name="work_life_balance" min="1" max="10" value="5" step="0.1" id="sl-balance"><span class="sval" id="sv-balance">5.0</span></div></div>
+            <div class="form-row"><label>Manager Support</label><div class="slider-wrap"><input type="range" name="manager_support" min="1" max="10" value="5" step="0.1" id="sl-manager"><span class="sval" id="sv-manager">5.0</span></div></div>
+            <div class="form-row"><label>Overtime Hours/Week</label><div class="slider-wrap"><input type="range" name="overtime_hours" min="0" max="30" value="4" step="1" id="sl-overtime"><span class="sval" id="sv-overtime">4</span></div></div>
+            <div class="form-row"><label>Meetings Per Day</label><div class="slider-wrap"><input type="range" name="meetings_per_day" min="0" max="12" value="4" step="1" id="sl-meetings"><span class="sval" id="sv-meetings">4</span></div></div>
+            <div class="form-row full2"><label>Job Role</label><select name="job_role" id="job-role-select"><option value="">Loading…</option></select></div>
+            <div class="form-row full2"><label>Work Mode</label><select name="work_mode" id="work-mode-select"><option value="">Loading…</option></select></div>
+            <button type="submit" class="btn-run">Run Assessment</button>
+          </form>
+        </div>
+        <div class="sc-right">
+          <div class="result-display" id="result-display">
+            <div class="result-empty"><div class="ico">📋</div><p>Complete the parameters and run the assessment.<br>Results will appear here.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  Workforce Analytics Platform &nbsp;·&nbsp; Confidential People-Operations Analytics &nbsp;·&nbsp; Internal use only &nbsp;·&nbsp; Not for adverse employment decisions
+</footer>
+
+<!-- ═══ SCRIPTS ═══ -->
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+Chart.defaults.color = '#7a8fa0';
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+const GRID_COLOR = '#edf1f5';
+const charts = {};
+function destroyChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+function numFmt(n){ return Number(n).toLocaleString(); }
+function animateCount(el,target,fmt){
+  const dur=600;let elapsed=0;
+  const t=setInterval(()=>{ elapsed+=16; el.textContent=fmt(Math.min(target,Math.round((elapsed/dur)*target))); if(elapsed>=dur)clearInterval(t); },16);
+}
+function renderBandCards(id,dist,total){
+  const el=$(id); if(!el) return;
+  const b=[{key:'Low',cls:'low'},{key:'Moderate',cls:'moderate'},{key:'Elevated',cls:'elevated'}];
+  el.innerHTML=b.map(({key,cls})=>{
+    const v=dist[key]||0; const pct=total?((v/total)*100).toFixed(1):'—';
+    return `<div class="band-box ${cls}"><div class="band-lbl">${key}</div><div class="band-cnt">${numFmt(v)}</div><div class="band-pct">${pct}% of workforce</div></div>`;
+  }).join('');
+}
+
+// ── SIMULATION MODAL LOGIC ──
+function openSimModal(){
+  const overlay = $('#sim-modal-overlay');
+  if(overlay) overlay.classList.add('open');
+}
+function closeSimModal(e){
+  if(e && e.target !== $('#sim-modal-overlay') && !e.target.classList.contains('sim-modal-close')) return;
+  const overlay = $('#sim-modal-overlay');
+  if(overlay) overlay.classList.remove('open');
+}
+
+// ── ORG SUMMARY ──
+fetch('/api/summary').then(r=>r.json()).then(d=>{
+  const roleSel=$('#job-role-select');
+  if(roleSel) roleSel.innerHTML=Object.keys(d.role_burnout).sort().map(r=>`<option value="${r}">${r}</option>`).join('');
+  const modeSel=$('#work-mode-select');
+  if(modeSel) modeSel.innerHTML=Object.keys(d.mode_burnout).sort().map(m=>`<option value="${m}">${m}</option>`).join('');
+  if(d.defaults){
+    const pairs=[['sl-stress','sv-stress','stress_level'],['sl-hours','sv-hours','work_hours_per_week'],['sl-balance','sv-balance','work_life_balance'],['sl-manager','sv-manager','manager_support'],['sl-overtime','sv-overtime','overtime_hours'],['sl-meetings','sv-meetings','meetings_per_day']];
+    pairs.forEach(([sid,oid,key])=>{
+      if(d.defaults[key]!==undefined){
+        $(`#${sid}`).value=d.defaults[key];
+        const isFloat = key==='stress_level'||key==='work_life_balance'||key==='manager_support';
+        $(`#${oid}`).textContent=isFloat?parseFloat(d.defaults[key]).toFixed(1):d.defaults[key];
+      }
+    });
+  }
+}).catch(()=>{
+  const s=$('#server-status');
+  s.style.background='rgba(192,57,43,.15)';s.style.color='#c0392b';
+  s.innerHTML='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#c0392b;margin-right:6px"></span>Server offline';
+});
+
+// ── UPLOAD ──
+const uploadEl=$('#upload-file'),analyseBtn=$('#analyse-btn'),statusEl=$('#upload-status');
+const fileDrop=$('#file-drop'),fileSelEl=$('#file-sel');
+function setStatus(type,msg,spin=false){
+  const icons={neutral:'○',success:'✓',error:'✕',info:'○'};
+  statusEl.className=`alert ${type}`;
+  statusEl.innerHTML=`<span class="ico">${spin?'<div class="spin"></div>':icons[type]}</span><span>${msg}</span>`;
+}
+['dragover','dragleave','drop'].forEach(ev=>{
+  fileDrop.addEventListener(ev,e=>{
+    e.preventDefault(); fileDrop.classList.toggle('drag',ev==='dragover');
+    if(ev==='drop'&&e.dataTransfer.files[0]){Object.defineProperty(uploadEl,'files',{configurable:true,get:()=>e.dataTransfer.files});handleFile(e.dataTransfer.files[0]);}
+  });
+});
+uploadEl.onchange=()=>{ if(uploadEl.files[0]) handleFile(uploadEl.files[0]); };
+function handleFile(f){
+  analyseBtn.disabled=true;
+  if(!f.name.toLowerCase().endsWith('.csv')){ setStatus('error','Please select a CSV file (.csv).'); fileSelEl.style.display='none'; return; }
+  if(f.size>500*1024*1024){ setStatus('error','File exceeds 500 MB limit.'); return; }
+  fileSelEl.style.display='block'; fileSelEl.textContent=`Selected: ${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+  setStatus('success',`File validated. Ready to analyse: ${f.name}`); analyseBtn.disabled=false;
+}
+analyseBtn.onclick=async()=>{
+  const file=uploadEl.files[0]; if(!file) return;
+  analyseBtn.disabled=true; setStatus('info','Uploading and running ML analysis — this may take a moment…',true);
+  $('#analysis-results').style.display='none';
+  try{
+    const fd=new FormData(); fd.append('file',file);
+    const r=await fetch('/api/analyse-upload',{method:'POST',body:fd});
+    const d=await r.json();
+    if(!r.ok||d.error){ setStatus('error',d.error||'Analysis failed.'); return; }
+    const tot=(d.risk_distribution.Low||0)+(d.risk_distribution.Moderate||0)+(d.risk_distribution.Elevated||0);
+    setStatus('success',`Analysis complete — ${numFmt(tot)} employee records scored.`);
+    renderResults(d);
+  }catch{ setStatus('error','Unable to reach the analysis service at http://127.0.0.1:8501'); }
+  finally{ analyseBtn.disabled=false; }
+};
+
+// ── BREAKDOWN STATE ──
+let _bd={};let _activeTab='work_mode';
+function renderBreakdown(tab){
+  _activeTab=tab;
+  const names={work_mode:'Work Mode',duration:'Duration Band',gender:'Gender',location:'City / Region'};
+  const colEl=$('#breakdown-col-name'); if(colEl) colEl.textContent=names[tab]||'Category';
+  const items=_bd[tab]||[];
+  destroyChart('breakdown');
+  const ctx=$('#chart-breakdown');
+  if(ctx&&items.length){
+    charts['breakdown']=new Chart(ctx,{
+      type:'bar',
+      data:{labels:items.map(i=>i.name),datasets:[
+        {label:'Avg Burnout Score',data:items.map(i=>i.mean_score),backgroundColor:'#1a6fc4',borderRadius:3,borderSkipped:false,yAxisID:'y'},
+        {label:'Elevated Rate %',data:items.map(i=>i.elevated_rate),backgroundColor:'#b95f00',borderRadius:3,borderSkipped:false,yAxisID:'y2'}
+      ]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{position:'bottom',labels:{padding:12,usePointStyle:true}}},
+        scales:{y:{grid:{display:false}},x:{beginAtZero:true,max:10,grid:{color:GRID_COLOR},title:{display:true,text:'Avg Burnout (0–10)',font:{size:10}}},
+          y2:{position:'top',beginAtZero:true,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}
+    });
+  }
+  const tbody=$('#breakdown-tbody'); if(!tbody) return;
+  tbody.innerHTML=items.map(r=>{
+    const risk=r.elevated_rate>20?'Elevated':r.elevated_rate>10?'Moderate':'Low';
+    return `<tr><td style="font-weight:600;color:var(--navy)">${r.name}</td><td>${numFmt(r.employees)}</td><td>${r.mean_score}/10</td><td>${r.elevated_rate}%</td><td><span class="risk-chip ${risk}">${risk}</span></td></tr>`;
+  }).join('');
+}
+$$('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>{
+  if(btn.disabled) return;
+  $$('.tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  renderBreakdown(btn.dataset.tab);
+}));
+
+
+
+// ── RENDER RESULTS ──
+function renderResults(d){
+  const sec=$('#analysis-results'); sec.style.display='block';
+  const tot=(d.risk_distribution.Low||0)+(d.risk_distribution.Moderate||0)+(d.risk_distribution.Elevated||0);
+  animateCount($('#res-employees'),tot,numFmt);
+  $('#res-burnout').textContent=d.mean_burnout_score+'/10';
+  $('#res-elevated').textContent=d.elevated_review_rate+'%';
+  $('#res-probability').textContent=d.mean_elevated_probability+'%';
+  $('#res-completeness').textContent=`${d.detected_fields.length} / 18 fields detected`;
+
+  const allF=['work_hours_per_week','overtime_hours','meetings_per_day','deadlines_missed','experience_years','job_role','work_mode','stress_level','sleep_hours','employee_location','job_satisfaction','manager_support','work_life_balance','company_size','social_support_score','screen_time_hours','caffeine_intake','physical_activity_days'];
+  $('#res-fields').innerHTML=allF.map(f=>{
+    const p=d.detected_fields.includes(f);
+    return `<span class="fpill ${p?'present':'missing'}" title="${p?'Detected':'Not in file — model default used'}">${f} ${p?'✓':'?'}</span>`;
+  }).join('');
+
+  if(d.has_employee_table){
+    $('#table-notice').innerHTML=`<a class="notice-chip" onclick="scrollToTable()" style="text-decoration:none">📋 ${numFmt(d.employee_table_count)} employee records ready in Employee Table →</a>`;
+    initEmployeeTable(d.employee_table_count);
+  } else {
+    $('#table-notice').innerHTML='';
+  }
+
+  renderBandCards('#res-band-cards',d.risk_distribution,tot);
+
+  destroyChart('res-risk');
+  charts['res-risk']=new Chart($('#chart-res-risk'),{
+    type:'doughnut',
+    data:{labels:['Low','Moderate','Elevated'],datasets:[{data:[d.risk_distribution.Low,d.risk_distribution.Moderate,d.risk_distribution.Elevated],backgroundColor:['#1a8a50','#b95f00','#c0392b'],borderColor:'#fff',borderWidth:3}]},
+    options:{responsive:true,cutout:'62%',plugins:{legend:{position:'bottom',labels:{padding:14,usePointStyle:true}}}}
+  });
+
+  const roles=d.role_analysis||[];
+  destroyChart('res-roles');
+  charts['res-roles']=new Chart($('#chart-res-roles'),{
+    type:'bar',
+    data:{labels:roles.map(r=>r.name),datasets:[{label:'Avg burnout score',data:roles.map(r=>r.mean_score),backgroundColor:'#1a6fc4',borderRadius:3,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:10,grid:{color:GRID_COLOR}},y:{grid:{display:false}}}}
+  });
+
+  $('#res-role-tbody').innerHTML=(roles||[]).map(r=>{
+    const risk=r.elevated_rate>20?'Elevated':r.elevated_rate>10?'Moderate':'Low';
+    return `<tr><td style="font-weight:600;color:var(--navy)">${r.name}</td><td>${numFmt(r.employees)}</td><td>${r.mean_score}/10</td><td>${r.elevated_rate}%</td><td><span class="risk-chip ${risk}">${risk}</span></td></tr>`;
+  }).join('');
+
+  _bd={work_mode:d.work_mode_analysis||[],duration:d.duration_analysis||[],gender:d.gender_analysis||[],location:d.location_analysis||[]};
+  $('#tab-gender').disabled=!d.has_gender; $('#tab-location').disabled=!d.has_location;
+  $$('.tab-btn').forEach(b=>b.classList.remove('active'));
+  $('#tab-work_mode').classList.add('active'); renderBreakdown('work_mode');
+  sec.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── SLIDERS ──
+[['sl-stress','sv-stress',true],['sl-hours','sv-hours',false],['sl-balance','sv-balance',true],['sl-manager','sv-manager',true],['sl-overtime','sv-overtime',false],['sl-meetings','sv-meetings',false]].forEach(([s,o,isFloat])=>{
+  const e=$(`#${s}`),out=$(`#${o}`);
+  e.oninput=()=>{ out.textContent = isFloat ? parseFloat(e.value).toFixed(1) : e.value; };
+});
+
+// ── SCENARIO FORM SUBMIT ──
+$('#scenario-form').onsubmit=async e=>{
+  e.preventDefault();
+  const data=Object.fromEntries(new FormData(e.target));
+  const btn=e.target.querySelector('.btn-run');
+  btn.innerHTML='<div class="spin" style="margin-right:6px"></div>Running…'; btn.disabled=true;
+  try{
+    const r=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const d=await r.json();
+    if(!r.ok || d.error || d.burnout_score === undefined){
+      $('#result-display').innerHTML=`<div class="result-empty"><div class="ico">⚠</div><p style="color:var(--red)">${d.error||'Assessment error.'}</p></div>`;
+      return;
+    }
+    const band=d.risk_band;
+    const em=band==='Low'?'●':band==='Moderate'?'▲':'■';
+    const col=band==='Elevated'?'var(--red)':band==='Moderate'?'var(--amber)':'var(--green)';
+    $('#result-display').innerHTML=`<div>
+      <div class="result-band-row"><div class="band-chip ${band}">${em} ${band} Risk</div><span style="font-size:12px;color:var(--muted)">Assessment result</span></div>
+      <div class="result-score-big">${d.burnout_score}<span class="of10"> / 10</span></div>
+      <div class="result-prob-line">Elevated-risk probability: <strong style="color:${col}">${d.elevated_risk_probability}%</strong></div>
+      <div class="result-metrics">
+        <div class="rm-box"><div class="rm-label">Burnout Score</div><div class="rm-val" style="color:var(--blue)">${d.burnout_score}</div></div>
+        <div class="rm-box"><div class="rm-label">Risk Band</div><div class="rm-val" style="color:${col}">${band}</div></div>
+        <div class="rm-box"><div class="rm-label">Review Threshold</div><div class="rm-val">${d.threshold}</div></div>
+      </div>
+      <div class="result-notice">${d.notice}</div>
+    </div>`;
+  }catch{ $('#result-display').innerHTML='<div class="result-empty"><div class="ico">⚠</div><p style="color:var(--red)">Could not reach the assessment service.</p></div>'; }
+  finally{ btn.textContent='Run Assessment'; btn.disabled=false; }
+};
+
+// ── EMPLOYEE SEARCH ──
+function setEmpStatus(type,msg){
+  const wrap=$('#emp-search-status'),al=$('#emp-search-alert');
+  wrap.style.display='block'; al.className=`alert ${type}`;
+  const icons={neutral:'○',success:'✓',error:'✕',info:'⟳'};
+  al.innerHTML=`<span class="ico">${icons[type]||'○'}</span><span>${msg}</span>`;
+}
+function renderEmpProfile(d,empId){
+  const wrap=$('#emp-profile-wrap'),profile=$('#emp-profile');
+  wrap.style.display='block';
+  const m=d.metadata||{},f=d.features||{},band=d.risk_band||'Low';
+  const role=m.job_role||f.job_role||'—',mode=m.work_mode||f.work_mode||'—';
+  const city=m.city||m.employee_location||m.location||'—';
+  const gender=m.gender||m.sex||'—',age=m.age||'—';
+  const pct=Math.round(d.elevated_risk_probability);
+  const pctCss=`${pct}%`,scoreColor=band==='Elevated'?'var(--red)':band==='Moderate'?'var(--amber)':'var(--green)';
+  const params=[['Stress Level',f.stress_level,'/ 10'],['Weekly Hours',f.work_hours_per_week,'h'],['Overtime',f.overtime_hours,'h/wk'],['Meetings/Day',f.meetings_per_day,''],['Deadlines Missed',f.deadlines_missed,''],['Work-Life Bal.',f.work_life_balance,'/ 10'],['Manager Support',f.manager_support,'/ 10'],['Job Satisfaction',f.job_satisfaction,'/ 10']].filter(([,v])=>v!==undefined&&v!==null&&String(v)!=='nan');
+  profile.innerHTML=`
+    <div class="emp-profile-header">
+      <div class="emp-avatar">👤</div>
+      <div><div class="emp-name">Employee #${empId}</div>
+      <div class="emp-meta"><span>${role}</span><span>${mode}</span>${city!=='—'?`<span>${city}</span>`:''} ${gender!=='—'?`<span>${gender}</span>`:''} ${age!=='—'?`<span>Age ${age}</span>`:''}</div></div>
+    </div>
+    <div class="emp-score-row">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Burnout Score</div>
+        <div class="emp-score-display"><div class="emp-score-num ${band}" style="color:${scoreColor}">${d.burnout_score}</div><div class="emp-score-sub">/ 10<br><span style="font-size:10px">${band} Risk</span></div></div>
+        <div style="margin-top:10px"><span class="band-chip ${band}">${band==='Low'?'●':band==='Moderate'?'▲':'■'} ${band} Risk</span></div>
+      </div>
+      <div class="emp-gauge">
+        <div class="emp-gauge-label">Elevated Probability</div>
+        <div class="gauge-ring" style="background:conic-gradient(${band==='Elevated'?'var(--red)':band==='Moderate'?'var(--amber)':'var(--blue)'} 0% ${pctCss}, #edf1f5 ${pctCss})">
+          <span class="gauge-val">${pct}%</span>
+        </div>
+        <div class="gauge-sub">vs ${d.threshold} threshold</div>
+      </div>
+    </div>
+    ${params.length?`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Workplace Parameters</div>
+    <div class="emp-params">${params.map(([lbl,val,unit])=>`<div class="emp-param-box"><div class="ep-label">${lbl}</div><div class="ep-val">${typeof val==='number'?val.toFixed(1):val}${unit?'<span style="font-size:10px;color:var(--muted);font-weight:400"> '+unit+'</span>':''}</div></div>`).join('')}</div>`:''}
+    <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
+      <button class="btn-load-scenario" id="load-scenario-btn"><span>⚡</span> Load into Scenario Simulator</button>
+      <span style="font-size:11px;color:var(--muted)">Copies parameters into the scenario tool</span>
+    </div>`;
+  $('#load-scenario-btn').onclick=()=>{
+    const setSlider=(id,valId,val,isFloat=false)=>{
+      const el=$(`#${id}`),disp=$(`#${valId}`);
+      if(el&&val!==undefined){el.value=val;disp.textContent=isFloat?parseFloat(val).toFixed(1):val;}
+    };
+    setSlider('sl-stress','sv-stress',f.stress_level,true); setSlider('sl-hours','sv-hours',f.work_hours_per_week);
+    setSlider('sl-balance','sv-balance',f.work_life_balance,true); setSlider('sl-manager','sv-manager',f.manager_support,true);
+    setSlider('sl-overtime','sv-overtime',f.overtime_hours); setSlider('sl-meetings','sv-meetings',f.meetings_per_day);
+    const roleSel=$('#job-role-select'); if(roleSel&&f.job_role)[...roleSel.options].find(o=>o.value===f.job_role)&&(roleSel.value=f.job_role);
+    const modeSel=$('#work-mode-select'); if(modeSel&&f.work_mode)[...modeSel.options].find(o=>o.value===f.work_mode)&&(modeSel.value=f.work_mode);
+    openSimModal();
+  };
+}
+async function searchEmployee(){
+  const empId=$('#emp-search-input').value.trim(); if(!empId){setEmpStatus('neutral','Please enter an Employee ID.');return;}
+  $('#emp-profile-wrap').style.display='none'; setEmpStatus('info','Searching…');
+  try{
+    const r=await fetch(`/api/search-employee?id=${encodeURIComponent(empId)}`);
+    const d=await r.json();
+    if(!r.ok||d.error){setEmpStatus('error',d.error||'Employee not found.');return;}
+    setEmpStatus('success',`Employee found — displaying burnout assessment for #${empId}`);
+    renderEmpProfile(d,empId);
+  }catch{setEmpStatus('error','Could not reach the server.');}
+}
+$('#emp-search-btn').onclick=searchEmployee;
+$('#emp-search-input').addEventListener('keydown',e=>{if(e.key==='Enter')searchEmployee();});
+
+// ── EMPLOYEE TABLE ──
+const TABLE={page:0,pageSize:25,total:0,search:'',filterBand:'',filterRole:'',filterMode:'',filterCity:'',sortCol:'score',sortDir:'desc'};
+let debounceTimer=null;
+
+function debounceFilter(){ clearTimeout(debounceTimer); debounceTimer=setTimeout(applyFilters,300); }
+function applyFilters(){
+  TABLE.search=$('#tf-search').value.trim();
+  TABLE.filterBand=$('#tf-band').value;
+  TABLE.filterRole=$('#tf-role').value;
+  TABLE.filterMode=$('#tf-mode').value;
+  TABLE.filterCity=$('#tf-city').value.trim();
+  loadTable(0);
+}
+function resetFilters(){
+  $('#tf-search').value=''; $('#tf-band').value=''; $('#tf-role').value=''; $('#tf-mode').value=''; $('#tf-city').value='';
+  TABLE.search=''; TABLE.filterBand=''; TABLE.filterRole=''; TABLE.filterMode=''; TABLE.filterCity='';
+  loadTable(0);
+}
+function changePageSize(){ TABLE.pageSize=parseInt($('#page-size-sel').value); loadTable(0); }
+function goPage(p){ if(p<0||p>=Math.ceil(TABLE.total/TABLE.pageSize)) return; loadTable(p); }
+function scrollToTable(){ $('#employee-table-section').scrollIntoView({behavior:'smooth',block:'start'}); }
+
+function initEmployeeTable(count){
+  const badge=$('#table-badge'); if(badge){badge.style.display='grid';badge.textContent=count>999?Math.round(count/1000)+'k':count;}
+  $('#table-no-data').style.display='none';
+  $('#table-filter-bar').style.display='flex';
+  $('#table-data-wrap').style.display='block';
+  $('#export-csv-btn').disabled=false;
+  $('#table-total-badge').textContent=`${numFmt(count)} employees`;
+  $$('#emp-table thead th.sortable').forEach(th=>{
+    th.onclick=()=>{
+      const col=th.dataset.col;
+      if(TABLE.sortCol===col){ TABLE.sortDir=TABLE.sortDir==='asc'?'desc':'asc'; }
+      else{ TABLE.sortCol=col; TABLE.sortDir=col==='id'?'asc':'desc'; }
+      $$('#emp-table thead th').forEach(t=>t.classList.remove('sort-asc','sort-desc'));
+      th.classList.add(TABLE.sortDir==='asc'?'sort-asc':'sort-desc');
+      loadTable(0);
+    };
+  });
+  loadTable(0);
+}
+
+async function loadTable(page=0){
+  TABLE.page=page;
+  const p=new URLSearchParams({page:TABLE.page,page_size:TABLE.pageSize,search:TABLE.search,filter_band:TABLE.filterBand,filter_role:TABLE.filterRole,filter_mode:TABLE.filterMode,filter_city:TABLE.filterCity,sort_col:TABLE.sortCol,sort_dir:TABLE.sortDir});
+  const tbody=$('#table-tbody');
+  tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--muted)"><div class="spin"></div> Loading…</td></tr>`;
+  try{
+    const r=await fetch('/api/employee-table?'+p);
+    const d=await r.json();
+    if(d.error){tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--red)">${d.error}</td></tr>`;return;}
+    TABLE.total=d.total;
+    updateFilterDropdowns(d.unique_roles,d.unique_modes);
+    renderTableRows(d.rows);
+    renderPagination();
+    const start=TABLE.page*TABLE.pageSize+1,end=Math.min(start+TABLE.pageSize-1,TABLE.total);
+    $('#table-info').textContent=TABLE.total===0?'No employees match the current filters.':`Showing ${numFmt(start)}–${numFmt(end)} of ${numFmt(TABLE.total)} employees`;
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--red)">Error loading data. Is the server running?</td></tr>`; }
+}
+
+function updateFilterDropdowns(roles,modes){
+  const roleSel=$('#tf-role'),modeSel=$('#tf-mode');
+  if(roles&&roleSel){ const cur=roleSel.value; roleSel.innerHTML='<option value="">All Roles</option>'+roles.map(r=>`<option value="${r}">${r}</option>`).join(''); roleSel.value=cur; }
+  if(modes&&modeSel){ const cur=modeSel.value; modeSel.innerHTML='<option value="">All Modes</option>'+modes.map(m=>`<option value="${m}">${m}</option>`).join(''); modeSel.value=cur; }
+}
+
+function renderTableRows(rows){
+  const tbody=$('#table-tbody');
+  if(!rows||rows.length===0){ tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--muted)">No employees match the current filters.</td></tr>`; return; }
+  const bandColor=b=>b==='Elevated'?'var(--red)':b==='Moderate'?'var(--amber)':'var(--green)';
+  tbody.innerHTML=rows.map(r=>`
+    <tr>
+      <td style="font-weight:600;color:var(--navy);font-family:'Courier New',monospace;font-size:11px">${r.id&&r.id!=='nan'?r.id:'—'}</td>
+      <td>${r.role||'—'}</td>
+      <td>${r.mode||'—'}</td>
+      <td>${r.city||'—'}</td>
+      <td>${r.state&&r.state!=='None'&&r.state!==''?r.state:'—'}</td>
+      <td>${r.gender&&r.gender!==''?r.gender:'—'}</td>
+      <td>${r.hours!==null?r.hours:'—'}</td>
+      <td>${r.stress!==null?r.stress:'—'}</td>
+      <td>${r.overtime!==null?r.overtime:'—'}</td>
+      <td>${r.experience!==null?r.experience:'—'}</td>
+      <td><strong style="color:${bandColor(r.band)}">${r.score}</strong></td>
+      <td>${r.prob}%</td>
+      <td><span class="risk-chip ${r.band}">${r.band}</span></td>
+    </tr>`).join('');
+}
+
+function renderPagination(){
+  const pages=Math.ceil(TABLE.total/TABLE.pageSize);
+  const prev=$('#pag-prev'),next=$('#pag-next');
+  if(prev) prev.disabled=TABLE.page<=0;
+  if(next) next.disabled=TABLE.page>=pages-1;
+  const pagesEl=$('#pag-pages'); if(!pagesEl) return;
+  let start=Math.max(0,TABLE.page-3),end=Math.min(pages-1,TABLE.page+3);
+  if(end-start<6){ if(start===0) end=Math.min(pages-1,6); else start=Math.max(0,end-6); }
+  let html='';
+  if(start>0) html+=`<button class="pag-btn" onclick="goPage(0)">1</button>`;
+  if(start>1) html+=`<span style="padding:0 4px;color:var(--muted)">…</span>`;
+  for(let p=start;p<=end;p++) html+=`<button class="pag-btn${p===TABLE.page?' active':''}" onclick="goPage(${p})">${p+1}</button>`;
+  if(end<pages-2) html+=`<span style="padding:0 4px;color:var(--muted)">…</span>`;
+  if(end<pages-1) html+=`<button class="pag-btn" onclick="goPage(${pages-1})">${pages}</button>`;
+  pagesEl.innerHTML=html;
+}
+
+function exportTableCSV(){
+  const p=new URLSearchParams({export:'1',search:TABLE.search,filter_band:TABLE.filterBand,filter_role:TABLE.filterRole,filter_mode:TABLE.filterMode,filter_city:TABLE.filterCity,sort_col:TABLE.sortCol,sort_dir:TABLE.sortDir});
+  window.location.href='/api/employee-table?'+p;
+}
+
+// ── SCROLL SPY ──
+const secMap={'file-analysis':'#nav-upload','employee-review':'#nav-review','employee-table-section':'#nav-table'};
+Object.keys(secMap).forEach(id=>{
+  const el=$(`#${id}`); if(!el) return;
+  new IntersectionObserver(entries=>{
+    if(entries[0].isIntersecting){ $$('.nav-links a').forEach(a=>a.classList.remove('active')); const lnk=$(secMap[id]); if(lnk) lnk.classList.add('active'); }
+  },{threshold:0.2}).observe(el);
+});
+</script>
+</body>
+</html>
