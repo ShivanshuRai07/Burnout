@@ -1,38 +1,39 @@
-"""Local workforce burnout dashboard using the trained model artifacts."""
+"""Vercel serverless Flask backend for the Workforce Burnout Analytics dashboard."""
 from __future__ import annotations
 
-import argparse
 import io
 import json
+import os
 import re
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import sys
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
 
+# Make burnout_platform importable from repo root
+ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(ROOT))
+
+from flask import Flask, jsonify, request, send_file, send_from_directory
 import joblib
 import numpy as np
 import pandas as pd
 
-# Cross-version Scikit-Learn Unpickler Compatibility
+# ─── Cross-version Scikit-Learn Unpickler Compatibility ──────────────────────
 try:
     import sklearn._loss._loss as _sklearn_loss
-    import sys
     sys.modules["_loss"] = _sklearn_loss
 except Exception:
     pass
 
-try:
-    _orig_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
-    def _compat_find_class(self, module, name):
-        if module == "_loss":
-            module = "sklearn._loss._loss"
-        return _orig_find_class(self, module, name)
-    joblib.numpy_pickle.NumpyUnpickler.find_class = _compat_find_class
-except Exception:
-    pass
+_orig_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
+def _compat_find_class(self, module, name):
+    if module == "_loss":
+        module = "sklearn._loss._loss"
+    return _orig_find_class(self, module, name)
+joblib.numpy_pickle.NumpyUnpickler.find_class = _compat_find_class
 
 from burnout_platform.features import engineer_features
+
+# ─── Constants ────────────────────────────────────────────────────────────────
 
 FEATURES = [
     "caffeine_intake", "company_size", "deadlines_missed", "experience_years", "job_role",
@@ -50,71 +51,63 @@ DURATION_BINS   = [0, 35, 40, 50, 60, 999]
 DURATION_LABELS = ["Undertime (<35h)", "Standard (35–40h)", "Overtime (41–50h)", "Extended (51–60h)", "Extreme (>60h)"]
 
 CITY_TO_STATE: dict[str, str] = {
-    # Delhi / NCR
     "new delhi": "Delhi", "delhi": "Delhi",
     "noida": "Uttar Pradesh", "ghaziabad": "Uttar Pradesh",
     "gurugram": "Haryana", "faridabad": "Haryana",
-    # Maharashtra
     "mumbai": "Maharashtra", "pune": "Maharashtra", "nagpur": "Maharashtra",
     "nashik": "Maharashtra", "thane": "Maharashtra", "aurangabad": "Maharashtra",
-    # Karnataka
     "bengaluru": "Karnataka", "bangalore": "Karnataka", "hubballi": "Karnataka",
     "mysuru": "Karnataka", "mangaluru": "Karnataka", "belagavi": "Karnataka",
-    # Tamil Nadu
     "chennai": "Tamil Nadu", "coimbatore": "Tamil Nadu", "salem": "Tamil Nadu",
     "tiruchirappalli": "Tamil Nadu", "madurai": "Tamil Nadu",
-    # Telangana
     "hyderabad": "Telangana", "warangal": "Telangana", "nizamabad": "Telangana",
     "karimnagar": "Telangana",
-    # Gujarat
     "ahmedabad": "Gujarat", "surat": "Gujarat", "vadodara": "Gujarat",
     "rajkot": "Gujarat", "gandhinagar": "Gujarat",
-    # Rajasthan
     "jaipur": "Rajasthan", "jodhpur": "Rajasthan", "udaipur": "Rajasthan",
     "kota": "Rajasthan", "ajmer": "Rajasthan", "bikaner": "Rajasthan",
-    # Uttar Pradesh
     "lucknow": "Uttar Pradesh", "kanpur": "Uttar Pradesh", "agra": "Uttar Pradesh",
     "varanasi": "Uttar Pradesh", "meerut": "Uttar Pradesh", "allahabad": "Uttar Pradesh",
     "prayagraj": "Uttar Pradesh",
-    # West Bengal
     "kolkata": "West Bengal", "howrah": "West Bengal", "durgapur": "West Bengal",
     "siliguri": "West Bengal", "asansol": "West Bengal",
-    # Haryana
     "panipat": "Haryana", "rohtak": "Haryana", "hisar": "Haryana", "ambala": "Haryana",
-    # Punjab
     "ludhiana": "Punjab", "amritsar": "Punjab", "jalandhar": "Punjab",
     "patiala": "Punjab", "chandigarh": "Punjab",
-    # Kerala
     "kochi": "Kerala", "thiruvananthapuram": "Kerala", "kozhikode": "Kerala",
     "thrissur": "Kerala", "kollam": "Kerala",
-    # Madhya Pradesh
     "bhopal": "Madhya Pradesh", "indore": "Madhya Pradesh", "jabalpur": "Madhya Pradesh",
     "gwalior": "Madhya Pradesh", "ujjain": "Madhya Pradesh",
-    # Jharkhand
     "ranchi": "Jharkhand", "jamshedpur": "Jharkhand", "dhanbad": "Jharkhand",
-    # Odisha
     "bhubaneswar": "Odisha", "cuttack": "Odisha", "rourkela": "Odisha",
-    # Bihar
     "patna": "Bihar", "gaya": "Bihar", "muzaffarpur": "Bihar", "bhagalpur": "Bihar",
-    # Assam
     "guwahati": "Assam", "silchar": "Assam", "dibrugarh": "Assam", "jorhat": "Assam",
-    # Uttarakhand
     "dehradun": "Uttarakhand", "haridwar": "Uttarakhand", "haldwani": "Uttarakhand",
-    # Goa
     "panaji": "Goa", "margao": "Goa", "vasco da gama": "Goa",
-    # Chhattisgarh
     "raipur": "Chhattisgarh", "bilaspur": "Chhattisgarh", "durg": "Chhattisgarh",
-    # Andhra Pradesh
     "visakhapatnam": "Andhra Pradesh", "vijayawada": "Andhra Pradesh", "guntur": "Andhra Pradesh",
-    # Himachal Pradesh
     "shimla": "Himachal Pradesh", "manali": "Himachal Pradesh",
-    # J&K
     "srinagar": "Jammu & Kashmir", "jammu": "Jammu & Kashmir",
 }
 
+# ─── Lazy-loaded global state ─────────────────────────────────────────────────
+
+_state: "DashboardState | None" = None
+
+
+def get_state() -> "DashboardState":
+    global _state
+    if _state is None:
+        artifacts = ROOT / "artifacts"
+        pkl_path = artifacts / "master_workforce_dataset.pkl.gz"
+        data_path = pkl_path if pkl_path.exists() else artifacts / "master_workforce_dataset.csv"
+        _state = DashboardState(data_path, artifacts)
+    return _state
+
+
+# ─── Helper functions ─────────────────────────────────────────────────────────
 
 def _parse_multipart(data: bytes, content_type: str):
-    """Extract (name, filename, body_bytes) from multipart/form-data."""
     m = re.search(r'boundary=([^;\s]+)', content_type)
     if not m:
         return
@@ -142,12 +135,13 @@ def _summarize_groups(aggregate: dict, limit: int = 20) -> list:
 
 
 def _agg_chunk(series_vals: pd.Series, score: np.ndarray, is_elevated: np.ndarray, agg_dict: dict) -> None:
-    """Accumulate score / elevated counts into agg_dict keyed by category."""
     tmp = pd.DataFrame({"g": series_vals.values, "s": score, "e": is_elevated})
-    for grp, vals in tmp.groupby("g", sort=False).agg(ss=("s","sum"), cnt=("s","size"), el=("e","sum")).iterrows():
+    for grp, vals in tmp.groupby("g", sort=False).agg(ss=("s", "sum"), cnt=("s", "size"), el=("e", "sum")).iterrows():
         cur = agg_dict.setdefault(str(grp), {"score_sum": 0.0, "count": 0, "elevated": 0})
         cur["score_sum"] += float(vals["ss"]); cur["count"] += int(vals["cnt"]); cur["elevated"] += int(vals["el"])
 
+
+# ─── Dashboard State ──────────────────────────────────────────────────────────
 
 class DashboardState:
     def __init__(self, data_path: Path, artifacts: Path) -> None:
@@ -161,8 +155,9 @@ class DashboardState:
         self.uploaded_employees: dict = {}
         self.employee_df: pd.DataFrame | None = None
         self.uploaded_raw_df: pd.DataFrame | None = None
+        self._cached_summary: dict | None = None
+        self._cached_defaults: dict | None = None
 
-    # ─── ORG SUMMARY ─────────────────────────────────────────────────────────
     def summary(self) -> dict:
         score = self.df["burnout_score"]
         return {
@@ -181,7 +176,6 @@ class DashboardState:
             "defaults": self.df[FEATURES].median(numeric_only=True).to_dict(),
         }
 
-    # ─── SCENARIO PREDICT ────────────────────────────────────────────────────
     def predict(self, payload: dict) -> dict:
         defaults = self.default_features()
         for name in FEATURES:
@@ -205,7 +199,6 @@ class DashboardState:
             defaults[col] = self.df[col].mode().iloc[0] if col in self.df and not self.df[col].mode().empty else "Unknown"
         return defaults
 
-    # ─── EMPLOYEE SEARCH ─────────────────────────────────────────────────────
     def search_employee(self, emp_id: str) -> dict | None:
         emp_id = emp_id.strip()
         if emp_id in self.uploaded_employees:
@@ -230,7 +223,7 @@ class DashboardState:
         numeric  = [x for x in FEATURES if x not in {"company_size", "job_role", "work_mode"}]
         feat_row = {}
         for name in FEATURES:
-            val = row.get(name, row.get(name.lower(), defaults.get(name)))
+            val = row.get(name, defaults.get(name))
             if not isinstance(val, str) and pd.isna(val):
                 val = defaults.get(name)
             feat_row[name] = val
@@ -252,18 +245,13 @@ class DashboardState:
                 "metadata": meta, "burnout_score": round(score, 2),
                 "elevated_risk_probability": round(risk * 100, 1), "risk_band": band, "threshold": self.threshold}
 
-    # ─── EMPLOYEE TABLE ───────────────────────────────────────────────────────
-    def get_employee_table(self, page: int = 0, page_size: int = 25,
-                           search: str = "", filter_band: str = "",
-                           filter_role: str = "", filter_mode: str = "",
-                           filter_city: str = "", sort_col: str = "score",
-                           sort_dir: str = "desc", export: bool = False):
+    def get_employee_table(self, page=0, page_size=25, search="", filter_band="",
+                           filter_role="", filter_mode="", filter_city="",
+                           sort_col="score", sort_dir="desc", export=False):
         empty = {"total": 0, "rows": [], "page": 0, "page_size": page_size, "unique_roles": [], "unique_modes": []}
         if self.employee_df is None or self.employee_df.empty:
             return pd.DataFrame() if export else empty
-
         df = self.employee_df
-        # Filters
         mask = pd.Series(True, index=df.index)
         if search:
             mask &= df["id"].astype(str).str.contains(search, case=False, na=False)
@@ -276,26 +264,20 @@ class DashboardState:
         if filter_city:
             mask &= df["city"].astype(str).str.contains(filter_city, case=False, na=False)
         df = df[mask]
-
-        # Sort
         VALID = {"id","role","mode","city","state","gender","hours","stress","overtime","score","prob","band","experience"}
         sc = sort_col if sort_col in df.columns and sort_col in VALID else "score"
         df = df.sort_values(sc, ascending=(sort_dir == "asc"), na_position="last")
         total = len(df)
-
         if export:
             return df
-
         page_size = max(1, min(page_size, 200))
         start = page * page_size
         page_df = df.iloc[start: start + page_size]
-
         def _safe(v):
             if isinstance(v, float) and np.isnan(v): return None
             if isinstance(v, (np.integer,)): return int(v)
             if isinstance(v, (np.floating,)): return float(v)
             return v
-
         rows = [{col: _safe(r[col]) for col in page_df.columns} for _, r in page_df.iterrows()]
         return {
             "total": total, "page": page, "page_size": page_size, "rows": rows,
@@ -303,14 +285,12 @@ class DashboardState:
             "unique_modes": sorted(self.employee_df["mode"].dropna().unique().tolist()),
         }
 
-    # ─── CSV UPLOAD ANALYSIS ─────────────────────────────────────────────────
     def analyse_upload(self, file_obj, filename: str) -> dict:
         if not filename.lower().endswith(".csv"):
             raise ValueError("Only CSV files are accepted.")
         file_obj.seek(0, 2); size = file_obj.tell(); file_obj.seek(0)
         if size > 500 * 1024 * 1024:
             raise ValueError("File exceeds 500 MB limit.")
-
         defaults = self.default_features()
         numeric  = [x for x in FEATURES if x not in {"company_size", "job_role", "work_mode"}]
         rows = 0; score_total = 0.0; prob_total = 0.0
@@ -318,16 +298,13 @@ class DashboardState:
         role_agg = {}; loc_agg = {}; gender_agg = {}; mode_agg = {}; state_agg = {}
         dur_agg = {lbl: {"score_sum": 0.0, "count": 0, "elevated": 0} for lbl in DURATION_LABELS}
         present = None; loc_field = gender_field = emp_id_field = state_field = None
-
         self.uploaded_employees = {}
         emp_chunks: list[pd.DataFrame] = []
         raw_chunks: list[pd.DataFrame] = []
-
         for chunk in pd.read_csv(file_obj, chunksize=100_000):
             chunk.columns = [str(c).strip() for c in chunk.columns]
             col_map = {c: c.lower().replace(" ", "_") for c in chunk.columns}
-            cl = chunk.rename(columns=col_map)   # cl = chunk_lower
-
+            cl = chunk.rename(columns=col_map)
             if present is None:
                 present = set(cl.columns)
                 miss = sorted(CORE_UPLOAD_FIELDS - present)
@@ -336,47 +313,36 @@ class DashboardState:
                 state_field  = next((f for f in ["state","province","region"] if f in present), None)
                 gender_field = next((f for f in ["gender","sex"] if f in present), None)
                 emp_id_field = next((f for f in ["employeeid","employee_id","emp_id","empid"] if f in present), None)
-
             rows += len(cl)
             if rows > 1_000_000: raise ValueError("File exceeds 1,000,000 rows.")
-
-            # Defaults from master dataset
             all_def = {col: (self.df[col].median() if self.df[col].dtype.kind in "bifc"
                              else (self.df[col].mode().iloc[0] if not self.df[col].mode().empty else ""))
                        for col in self.df.columns}
-
             batch = pd.DataFrame(index=cl.index)
             for col in self.df.columns:
                 lc = col.lower().replace(" ", "_")
                 batch[col] = cl[lc].values if lc in cl.columns else (cl[col].values if col in cl.columns else all_def[col])
-
             for col in numeric:
                 if col in batch.columns:
                     batch[col] = pd.to_numeric(batch[col], errors="coerce").fillna(all_def.get(col, 0))
             for col in {"company_size", "job_role", "work_mode"}:
                 if col in batch.columns:
                     batch[col] = batch[col].fillna(all_def.get(col, "")).astype(str)
-
             try:
                 batch_eng = engineer_features(batch)
                 score = np.clip(self.score_model.predict(batch_eng), 0, 10)
                 prob  = self.risk_model.predict_proba(batch_eng)[:, 1]
             except Exception as exc:
                 return {"error": f"Analysis failed: {exc}"}
-
             band     = np.where(score >= self.threshold, "Elevated", np.where(score >= 2.5, "Moderate", "Low"))
             elevated = score >= self.threshold
             score_total += float(score.sum()); prob_total += float(prob.sum())
             for b in bands_total: bands_total[b] += int((band == b).sum())
-
-            # ── Aggregations ──
-            if "job_role" in cl.columns:  _agg_chunk(cl["job_role"].fillna("Unknown"), score, elevated, role_agg)
+            if "job_role" in cl.columns: _agg_chunk(cl["job_role"].fillna("Unknown"), score, elevated, role_agg)
             if loc_field and loc_field in cl.columns: _agg_chunk(cl[loc_field].fillna("Unknown"), score, elevated, loc_agg)
             if gender_field and gender_field in cl.columns: _agg_chunk(cl[gender_field].fillna("Unknown"), score, elevated, gender_agg)
             if "work_mode" in cl.columns: _agg_chunk(cl["work_mode"].fillna("Unknown"), score, elevated, mode_agg)
-
-            # State aggregation
-            state_series: pd.Series | None = None
+            state_series = None
             if state_field and state_field in cl.columns:
                 state_series = cl[state_field].astype(str)
             elif loc_field and loc_field in cl.columns:
@@ -385,22 +351,17 @@ class DashboardState:
                 valid = state_series.notna() & (state_series != "None") & (state_series != "nan")
                 if valid.any():
                     _agg_chunk(state_series[valid].fillna("Unknown"), score[valid.values], elevated[valid.values], state_agg)
-
-            # Work duration bins
             if "work_hours_per_week" in cl.columns:
                 hrs = pd.to_numeric(cl["work_hours_per_week"], errors="coerce").fillna(40)
                 dlbl = pd.cut(hrs, bins=DURATION_BINS, labels=DURATION_LABELS, right=True)
                 for lbl, vals in pd.DataFrame({"g": dlbl, "s": score, "e": elevated}).groupby("g", observed=True).agg(ss=("s","sum"),cnt=("s","size"),el=("e","sum")).iterrows():
                     cur = dur_agg[str(lbl)]
                     cur["score_sum"] += float(vals["ss"]); cur["count"] += int(vals["cnt"]); cur["elevated"] += int(vals["el"])
-
-            # ── Employee table chunk ──
             def _col(name):
                 return cl[name] if name and name in cl.columns else pd.Series([None]*len(cl), index=cl.index, dtype=object)
             def _num_col(name):
                 c = cl[name] if name and name in cl.columns else pd.Series([None]*len(cl), index=cl.index, dtype=object)
                 return pd.to_numeric(c, errors="coerce").round(1)
-
             emp_chunk_df = pd.DataFrame({
                 "id":         _col(emp_id_field).astype(str),
                 "role":       _col("job_role").fillna("").astype(str),
@@ -422,7 +383,6 @@ class DashboardState:
         if not rows: raise ValueError("Uploaded file has no employee rows.")
         self.employee_df = pd.concat(emp_chunks, ignore_index=True) if emp_chunks else None
         self.uploaded_raw_df = pd.concat(raw_chunks, ignore_index=True) if raw_chunks else None
-
         return {
             "detected_fields": sorted(present & set(FEATURES)),
             "optional_fields_not_supplied": sorted(OPTIONAL_WORKPLACE_FIELDS - present),
@@ -444,126 +404,101 @@ class DashboardState:
             "state_analysis": _summarize_groups(state_agg, limit=30),
             "upload_progress_percent": 100,
             "initial_table": self.get_employee_table(page=0, page_size=25),
-            "notice": "The uploaded file is streamed in batches and is not retained by this local service.",
+            "notice": "The uploaded file is streamed in batches and is not retained by this service.",
         }
 
 
-# ─── HTTP HANDLER ──────────────────────────────────────────────────────────────
-def make_handler(state: DashboardState, html: bytes):
-    class Handler(BaseHTTPRequestHandler):
-        def send_json(self, data: dict, status: int = 200):
-            body = json.dumps(data, default=str).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(body)
+# ─── Flask App ────────────────────────────────────────────────────────────────
 
-        def do_GET(self):
-            parsed = urlparse(self.path)
-            path   = parsed.path
-            params = parse_qs(parsed.query)
-            def p(k, d=""): return params.get(k, [d])[0]
-
-            if path == "/api/summary":
-                return self.send_json(state.summary())
-
-            if path == "/api/search-employee":
-                eid = p("id").strip()
-                if not eid:
-                    return self.send_json({"error": "Employee ID is required."}, 400)
-                result = state.search_employee(eid)
-                if result is None:
-                    return self.send_json({"error": f"Employee '{eid}' not found."}, 404)
-                return self.send_json(result)
-
-            if path == "/api/employee-table":
-                export = p("export") == "1"
-                try:
-                    page = int(p("page", "0"))
-                    page_size = min(int(p("page_size", "25")), 200)
-                except ValueError:
-                    page, page_size = 0, 25
-
-                result = state.get_employee_table(
-                    page=page, page_size=page_size,
-                    search=p("search"), filter_band=p("filter_band"),
-                    filter_role=p("filter_role"), filter_mode=p("filter_mode"),
-                    filter_city=p("filter_city"),
-                    sort_col=p("sort_col", "score"), sort_dir=p("sort_dir", "desc"),
-                    export=export,
-                )
-                if export:
-                    buf = io.StringIO()
-                    if isinstance(result, pd.DataFrame):
-                        result.to_csv(buf, index=False)
-                    body = buf.getvalue().encode("utf-8")
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/csv")
-                    self.send_header("Content-Disposition", 'attachment; filename="employee_burnout_report.csv"')
-                    self.send_header("Content-Length", str(len(body)))
-                    self.end_headers()
-                    self.wfile.write(body)
-                    return
-                return self.send_json(result)
-
-            if path in ("/", "/index.html"):
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Content-Length", str(len(html)))
-                self.end_headers()
-                self.wfile.write(html)
-                return
-
-            self.send_error(HTTPStatus.NOT_FOUND)
-
-        def do_POST(self):
-            if self.path not in {"/api/predict", "/api/analyse-upload"}:
-                return self.send_error(HTTPStatus.NOT_FOUND)
-            try:
-                if self.path == "/api/analyse-upload":
-                    ct  = self.headers.get("Content-Type", "")
-                    cl  = int(self.headers.get("Content-Length", "0"))
-                    raw = self.rfile.read(cl)
-                    file_bytes, file_name = None, "upload.csv"
-                    for name, filename, body in _parse_multipart(raw, ct):
-                        if name == "file":
-                            file_bytes = body; file_name = filename or file_name; break
-                    if file_bytes is None:
-                        raise ValueError("No CSV file received.")
-                    return self.send_json(state.analyse_upload(io.BytesIO(file_bytes), file_name))
-                size    = int(self.headers.get("Content-Length", "0"))
-                payload = json.loads(self.rfile.read(size))
-                return self.send_json(state.predict(payload))
-            except Exception as exc:
-                return self.send_json({"error": str(exc)}, 400)
-
-        def log_message(self, *_): pass
-    return Handler
+app = Flask(__name__, static_folder=str(ROOT), static_url_path="")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--data",      default=None, help="Path to workforce dataset (.csv or .pkl.gz)")
-    parser.add_argument("--artifacts", default="artifacts", help="Path to artifacts directory")
-    parser.add_argument("--port",      type=int, default=8501)
-    args  = parser.parse_args()
-    base  = Path(__file__).parent
-    artifacts_path = Path(args.artifacts)
-    if not artifacts_path.is_absolute():
-        artifacts_path = base / artifacts_path
+@app.after_request
+def add_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
 
-    if args.data:
-        data_path = Path(args.data)
-        if not data_path.is_absolute():
-            data_path = base / data_path
-    else:
-        pkl_path = artifacts_path / "master_workforce_dataset.pkl.gz"
-        data_path = pkl_path if pkl_path.exists() else artifacts_path / "master_workforce_dataset.csv"
 
-    print(f"Loading data from {data_path}...")
-    state = DashboardState(data_path, artifacts_path)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, (base / "dashboard.html").read_bytes()))
-    print(f"Dashboard running at http://127.0.0.1:{args.port}")
-    server.serve_forever()
+@app.route("/", methods=["GET"])
+def index():
+    return send_from_directory(str(ROOT), "dashboard.html")
+
+
+@app.route("/api/summary", methods=["GET"])
+def api_summary():
+    try:
+        return jsonify(get_state().summary())
+    except Exception as exc:
+        import traceback
+        return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/predict", methods=["POST", "OPTIONS"])
+def api_predict():
+    if request.method == "OPTIONS":
+        return "", 204
+    try:
+        payload = request.get_json(force=True) or {}
+        return jsonify(get_state().predict(payload))
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/search-employee", methods=["GET"])
+def api_search_employee():
+    emp_id = request.args.get("id", "").strip()
+    if not emp_id:
+        return jsonify({"error": "Employee ID is required."}), 400
+    result = get_state().search_employee(emp_id)
+    if result is None:
+        return jsonify({"error": f"Employee '{emp_id}' not found."}), 404
+    return jsonify(result)
+
+
+@app.route("/api/employee-table", methods=["GET"])
+def api_employee_table():
+    state = get_state()
+    export = request.args.get("export") == "1"
+    try:
+        page = int(request.args.get("page", "0"))
+        page_size = min(int(request.args.get("page_size", "25")), 200)
+    except ValueError:
+        page, page_size = 0, 25
+    result = state.get_employee_table(
+        page=page, page_size=page_size,
+        search=request.args.get("search", ""),
+        filter_band=request.args.get("filter_band", ""),
+        filter_role=request.args.get("filter_role", ""),
+        filter_mode=request.args.get("filter_mode", ""),
+        filter_city=request.args.get("filter_city", ""),
+        sort_col=request.args.get("sort_col", "score"),
+        sort_dir=request.args.get("sort_dir", "desc"),
+        export=export,
+    )
+    if export:
+        buf = io.StringIO()
+        if isinstance(result, pd.DataFrame):
+            result.to_csv(buf, index=False)
+        return buf.getvalue(), 200, {
+            "Content-Type": "text/csv",
+            "Content-Disposition": 'attachment; filename="employee_burnout_report.csv"',
+        }
+    return jsonify(result)
+
+
+@app.route("/api/analyse-upload", methods=["POST", "OPTIONS"])
+def api_analyse_upload():
+    if request.method == "OPTIONS":
+        return "", 204
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No CSV file received."}), 400
+        f = request.files["file"]
+        return jsonify(get_state().analyse_upload(f.stream, f.filename or "upload.csv"))
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+# Vercel uses the `app` object as the WSGI handler

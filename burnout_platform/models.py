@@ -83,15 +83,14 @@ def fit_calibrated_risk_model(
     X_train: pd.DataFrame, 
     y_train_binary: pd.Series, 
     preprocessor: ColumnTransformer
-) -> CalibratedClassifierCV:
-    risk_base = XGBClassifier(
-        n_estimators=200, max_depth=5, learning_rate=0.05, 
-        eval_metric="logloss", n_jobs=-1, random_state=RANDOM_STATE
+) -> Pipeline:
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    risk_base = HistGradientBoostingClassifier(
+        max_iter=150, learning_rate=0.07, max_leaf_nodes=31, random_state=RANDOM_STATE
     )
     risk_pipeline = Pipeline([("preprocessor", preprocessor), ("model", risk_base)])
-    calibrated_risk = CalibratedClassifierCV(risk_pipeline, method="sigmoid", cv=3)
-    calibrated_risk.fit(X_train, y_train_binary)
-    return calibrated_risk
+    risk_pipeline.fit(X_train, y_train_binary)
+    return risk_pipeline
 
 def perform_segmentation(df: pd.DataFrame) -> pd.DataFrame:
     """Segment employees based on Workload Index, Wellness Score, and Burnout Score."""

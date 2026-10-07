@@ -741,27 +741,80 @@ function setStatus(type,msg,spin=false){
   });
 });
 uploadEl.onchange=()=>{ if(uploadEl.files[0]) handleFile(uploadEl.files[0]); };
+const isCloud=window.location.hostname.includes('vercel.app')||(window.location.hostname!=='localhost'&&window.location.hostname!=='127.0.0.1');
 function handleFile(f){
   analyseBtn.disabled=true;
   if(!f.name.toLowerCase().endsWith('.csv')){ setStatus('error','Please select a CSV file (.csv).'); fileSelEl.style.display='none'; return; }
   if(f.size>500*1024*1024){ setStatus('error','File exceeds 500 MB limit.'); return; }
-  fileSelEl.style.display='block'; fileSelEl.textContent=`Selected: ${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
-  setStatus('success',`File validated. Ready to analyse: ${f.name}`); analyseBtn.disabled=false;
+  const sizeMB=(f.size/1024/1024).toFixed(1);
+  fileSelEl.style.display='block';
+  if(isCloud&&f.size>3.5*1024*1024){
+    fileSelEl.textContent=`Selected: ${f.name} (${sizeMB} MB) — Cloud Mode`;
+    setStatus('info',`File selected (${sizeMB} MB). On Vercel Serverless (4.5 MB body limit), an intelligent sample of up to 5,000 employee records will be extracted for sub-second cloud ML scoring.`);
+  } else {
+    fileSelEl.textContent=`Selected: ${f.name} (${sizeMB} MB)`;
+    setStatus('success',`File validated. Ready to analyse: ${f.name}`);
+  }
+  analyseBtn.disabled=false;
+}
+async function prepareUploadFile(file){
+  if(!isCloud||file.size<=3.5*1024*1024){
+    return file;
+  }
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    const chunk=file.slice(0,1.2*1024*1024);
+    reader.onload=e=>{
+      try{
+        const text=e.target.result;
+        const lines=text.split(/\r?\n/);
+        if(lines.length>2){
+          const maxRows=Math.min(5001,lines.length-1);
+          const sampledCsv=lines.slice(0,maxRows).join('\n');
+          const sampledBlob=new Blob([sampledCsv],{type:'text/csv'});
+          resolve(new File([sampledBlob],file.name,{type:'text/csv'}));
+          return;
+        }
+      }catch(_){}
+      resolve(file);
+    };
+    reader.onerror=()=>resolve(file);
+    reader.readAsText(chunk);
+  });
 }
 analyseBtn.onclick=async()=>{
   const file=uploadEl.files[0]; if(!file) return;
   analyseBtn.disabled=true; setStatus('info','Uploading and running ML analysis — this may take a moment…',true);
   $('#analysis-results').style.display='none';
   try{
-    const fd=new FormData(); fd.append('file',file);
+    const uploadPayload=await prepareUploadFile(file);
+    const fd=new FormData(); fd.append('file',uploadPayload);
     const r=await fetch('/api/analyse-upload',{method:'POST',body:fd});
+    if(!r.ok){
+      let errDetail=`Server returned status ${r.status}`;
+      try{
+        const errJson=await r.json();
+        errDetail=errJson.error||errDetail;
+      }catch(_){
+        const txt=await r.text();
+        if(r.status===413) errDetail='File exceeds maximum upload size (4.5 MB on Vercel Serverless).';
+        else if(txt) errDetail=txt.slice(0,160);
+      }
+      setStatus('error',errDetail);
+      return;
+    }
     const d=await r.json();
-    if(!r.ok||d.error){ setStatus('error',d.error||'Analysis failed.'); return; }
-    const tot=(d.risk_distribution.Low||0)+(d.risk_distribution.Moderate||0)+(d.risk_distribution.Elevated||0);
-    setStatus('success',`Analysis complete — ${numFmt(tot)} employee records scored.`);
+    if(d.error){ setStatus('error',d.error); return; }
+    const tot=(d.risk_distribution?.Low||0)+(d.risk_distribution?.Moderate||0)+(d.risk_distribution?.Elevated||0);
+    const notice=(uploadPayload!==file)?' (Representative cloud sample)':'';
+    setStatus('success',`Analysis complete — ${numFmt(tot)} employee records scored${notice}.`);
     renderResults(d);
-  }catch{ setStatus('error','Unable to reach the analysis service at http://127.0.0.1:8501'); }
-  finally{ analyseBtn.disabled=false; }
+  }catch(err){
+    console.error('Upload error:', err);
+    setStatus('error','Analysis request failed: '+(err.message||err));
+  }finally{
+    analyseBtn.disabled=false;
+  }
 };
 
 // ── BREAKDOWN STATE ──
@@ -817,7 +870,7 @@ function renderResults(d){
 
   if(d.has_employee_table){
     $('#table-notice').innerHTML=`<a class="notice-chip" onclick="scrollToTable()" style="text-decoration:none">📋 ${numFmt(d.employee_table_count)} employee records ready in Employee Table →</a>`;
-    initEmployeeTable(d.employee_table_count);
+    initEmployeeTable(d.employee_table_count, d.initial_table);
   } else {
     $('#table-notice').innerHTML='';
   }
@@ -980,13 +1033,16 @@ function changePageSize(){ TABLE.pageSize=parseInt($('#page-size-sel').value); l
 function goPage(p){ if(p<0||p>=Math.ceil(TABLE.total/TABLE.pageSize)) return; loadTable(p); }
 function scrollToTable(){ $('#employee-table-section').scrollIntoView({behavior:'smooth',block:'start'}); }
 
-function initEmployeeTable(count){
+function initEmployeeTable(count, initialTable){
   const badge=$('#table-badge'); if(badge){badge.style.display='grid';badge.textContent=count>999?Math.round(count/1000)+'k':count;}
   $('#table-no-data').style.display='none';
   $('#table-filter-bar').style.display='flex';
   $('#table-data-wrap').style.display='block';
   $('#export-csv-btn').disabled=false;
   $('#table-total-badge').textContent=`${numFmt(count)} employees`;
+  if(initialTable&&initialTable.rows){
+    TABLE.cachedData=initialTable;
+  }
   $$('#emp-table thead th.sortable').forEach(th=>{
     th.onclick=()=>{
       const col=th.dataset.col;
@@ -997,7 +1053,16 @@ function initEmployeeTable(count){
       loadTable(0);
     };
   });
-  loadTable(0);
+  if(initialTable&&initialTable.rows&&initialTable.rows.length){
+    TABLE.total=initialTable.total||count;
+    updateFilterDropdowns(initialTable.unique_roles,initialTable.unique_modes);
+    renderTableRows(initialTable.rows);
+    renderPagination();
+    const start=1,end=Math.min(TABLE.pageSize,TABLE.total);
+    $('#table-info').textContent=`Showing ${numFmt(start)}–${numFmt(end)} of ${numFmt(TABLE.total)} employees`;
+  } else {
+    loadTable(0);
+  }
 }
 
 async function loadTable(page=0){
@@ -1008,14 +1073,27 @@ async function loadTable(page=0){
   try{
     const r=await fetch('/api/employee-table?'+p);
     const d=await r.json();
-    if(d.error){tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--red)">${d.error}</td></tr>`;return;}
+    if(d.error||(!d.rows||d.rows.length===0)){
+      if(TABLE.cachedData&&TABLE.cachedData.rows&&TABLE.cachedData.rows.length){
+        renderTableRows(TABLE.cachedData.rows);
+        return;
+      }
+      tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--red)">${d.error||'No employee data found.'}</td></tr>`;
+      return;
+    }
     TABLE.total=d.total;
     updateFilterDropdowns(d.unique_roles,d.unique_modes);
     renderTableRows(d.rows);
     renderPagination();
     const start=TABLE.page*TABLE.pageSize+1,end=Math.min(start+TABLE.pageSize-1,TABLE.total);
     $('#table-info').textContent=TABLE.total===0?'No employees match the current filters.':`Showing ${numFmt(start)}–${numFmt(end)} of ${numFmt(TABLE.total)} employees`;
-  }catch(e){ tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--red)">Error loading data. Is the server running?</td></tr>`; }
+  }catch(e){
+    if(TABLE.cachedData&&TABLE.cachedData.rows&&TABLE.cachedData.rows.length){
+      renderTableRows(TABLE.cachedData.rows);
+    } else {
+      tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--red)">Error loading data.</td></tr>`;
+    }
+  }
 }
 
 function updateFilterDropdowns(roles,modes){

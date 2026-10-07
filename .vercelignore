@@ -1,0 +1,23 @@
+# Exclude dev/local files from Vercel deployment
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+.DS_Store
+.idea/
+.vscode/
+*.ipynb
+run_dashboard.ps1
+dashboard_server.py
+train.py
+train_pipeline.py
+artifacts_new/
+artifacts/master_workforce_dataset.csv
+artifacts/*.png
+DOCUMENTATION.md
+MODEL_REPORT.md
+RESEARCH_PAPER.md
+Workforce_Burnout_Analytics_Research_Paper.pdf
+company_upload_template.csv
