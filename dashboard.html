@@ -150,7 +150,7 @@ body{font-family:'Inter',-apple-system,sans-serif;font-size:14px;background:var(
 
 /* ── BREAKDOWN ── */
 .breakdown-layout{display:grid;grid-template-columns:1.4fr 1fr;gap:0}
-.breakdown-chart{padding:20px;border-right:1px solid var(--border)}
+.breakdown-chart{padding:20px;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;justify-content:center}
 .breakdown-table{padding:20px;overflow-y:auto;max-height:420px}
 
 
@@ -491,7 +491,7 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
           <button class="tab-btn"         data-tab="location"   id="tab-location" disabled>Geography</button>
         </div>
         <div class="breakdown-layout">
-          <div class="breakdown-chart"><canvas id="chart-breakdown" height="280"></canvas></div>
+          <div class="breakdown-chart"><canvas id="chart-breakdown"></canvas></div>
           <div class="breakdown-table">
             <table class="data-table">
               <thead><tr><th id="breakdown-col-name">Category</th><th>Employees</th><th>Avg. Score</th><th>Elevated %</th><th>Risk</th></tr></thead>
@@ -838,15 +838,87 @@ function renderBreakdown(tab){
   destroyChart('breakdown');
   const ctx=$('#chart-breakdown');
   if(ctx&&items.length){
+    const targetH = Math.max(160, Math.min(380, items.length * 48 + 55));
+    if(ctx.parentElement) ctx.parentElement.style.height = targetH + 'px';
+
     charts['breakdown']=new Chart(ctx,{
       type:'bar',
-      data:{labels:items.map(i=>i.name),datasets:[
-        {label:'Avg Burnout Score',data:items.map(i=>i.mean_score),backgroundColor:'#1a6fc4',borderRadius:3,borderSkipped:false,yAxisID:'y'},
-        {label:'Elevated Rate %',data:items.map(i=>i.elevated_rate),backgroundColor:'#b95f00',borderRadius:3,borderSkipped:false,yAxisID:'y2'}
-      ]},
-      options:{indexAxis:'y',responsive:true,plugins:{legend:{position:'bottom',labels:{padding:12,usePointStyle:true}}},
-        scales:{y:{grid:{display:false}},x:{beginAtZero:true,max:10,grid:{color:GRID_COLOR},title:{display:true,text:'Avg Burnout (0–10)',font:{size:10}}},
-          y2:{position:'top',beginAtZero:true,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}
+      data:{
+        labels: items.map(i=>i.name),
+        datasets:[
+          {
+            label: 'Avg Burnout Score (0–10)',
+            data: items.map(i=>i.mean_score),
+            backgroundColor: '#1a6fc4',
+            borderRadius: 4,
+            borderSkipped: false,
+            xAxisID: 'x',
+            barThickness: items.length <= 4 ? 14 : 11
+          },
+          {
+            label: 'Elevated Review Rate (%)',
+            data: items.map(i=>i.elevated_rate),
+            backgroundColor: '#e05624',
+            borderRadius: 4,
+            borderSkipped: false,
+            xAxisID: 'x2',
+            barThickness: items.length <= 4 ? 14 : 11
+          }
+        ]
+      },
+      options:{
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        categoryPercentage: 0.68,
+        barPercentage: 0.88,
+        plugins:{
+          legend:{
+            position: 'bottom',
+            labels:{ padding: 12, usePointStyle: true, boxWidth: 7, font: { size: 11, weight: '600' } }
+          },
+          tooltip:{
+            backgroundColor: 'rgba(15, 45, 86, 0.95)',
+            padding: 10,
+            cornerRadius: 4,
+            titleFont: { size: 12, weight: '700' },
+            bodyFont: { size: 11 },
+            callbacks:{
+              label: (ctx)=>{
+                const isElevated = ctx.dataset.xAxisID === 'x2';
+                const itm = items[ctx.dataIndex];
+                if(isElevated){
+                  return ` Elevated Review Rate: ${ctx.parsed.x}% (${numFmt(Math.round(itm.employees * (itm.elevated_rate || 0) / 100))} employees)`;
+                }
+                return ` Avg Burnout Score: ${ctx.parsed.x} / 10`;
+              }
+            }
+          }
+        },
+        scales:{
+          y:{
+            grid:{ display: false },
+            ticks:{ font: { weight: '600', size: 12 }, color: '#0f2d56' }
+          },
+          x:{
+            type: 'linear',
+            position: 'bottom',
+            beginAtZero: true,
+            max: 10,
+            grid:{ color: GRID_COLOR },
+            title:{ display: true, text: 'Avg Burnout (0–10)', font: { size: 10, weight: '600' }, color: '#7a8fa0' }
+          },
+          x2:{
+            type: 'linear',
+            position: 'top',
+            beginAtZero: true,
+            max: 100,
+            grid:{ drawOnChartArea: false },
+            title:{ display: true, text: 'Elevated Review Rate (%)', font: { size: 10, weight: '600' }, color: '#e05624' },
+            ticks:{ callback: v => v + '%' }
+          }
+        }
+      }
     });
   }
   const tbody=$('#breakdown-tbody'); if(!tbody) return;
@@ -899,7 +971,7 @@ function renderResults(d){
   destroyChart('res-roles');
   charts['res-roles']=new Chart($('#chart-res-roles'),{
     type:'bar',
-    data:{labels:roles.map(r=>r.name),datasets:[{label:'Avg burnout score',data:roles.map(r=>r.mean_score),backgroundColor:'#1a6fc4',borderRadius:3,borderSkipped:false}]},
+    data:{labels:roles.map(r=>r.name),datasets:[{label:'Avg burnout score',data:roles.map(r=>r.mean_score),backgroundColor:'#1a6fc4',borderRadius:4,maxBarThickness:18,borderSkipped:false}]},
     options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:10,grid:{color:GRID_COLOR}},y:{grid:{display:false}}}}
   });
 
