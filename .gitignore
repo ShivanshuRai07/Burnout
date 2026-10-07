@@ -17,3 +17,4 @@ env/
 # Temporary artifacts
 artifacts_new/
 .vercel
+.env*
