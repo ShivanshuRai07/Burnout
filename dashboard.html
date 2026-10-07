@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Workforce Analytics | People Operations Platform</title>
 <meta name="description" content="Enterprise workforce burnout analytics: upload HR data for AI-powered risk analysis, role breakdowns, India state heatmap, and employee table.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -741,15 +744,17 @@ function setStatus(type,msg,spin=false){
   });
 });
 uploadEl.onchange=()=>{ if(uploadEl.files[0]) handleFile(uploadEl.files[0]); };
+let currentFile=null;
 const isCloud=window.location.hostname.includes('vercel.app')||(window.location.hostname!=='localhost'&&window.location.hostname!=='127.0.0.1');
 function handleFile(f){
+  currentFile=f;
   analyseBtn.disabled=true;
   if(!f.name.toLowerCase().endsWith('.csv')){ setStatus('error','Please select a CSV file (.csv).'); fileSelEl.style.display='none'; return; }
   if(f.size>500*1024*1024){ setStatus('error','File exceeds 500 MB limit.'); return; }
   const sizeMB=(f.size/1024/1024).toFixed(1);
   fileSelEl.style.display='block';
   if(isCloud&&f.size>3.5*1024*1024){
-    fileSelEl.textContent=`Selected: ${f.name} (${sizeMB} MB) — Cloud Mode`;
+    fileSelEl.textContent=`Selected: ${f.name} (${sizeMB} MB) [Cloud Mode]`;
     setStatus('info',`File selected (${sizeMB} MB). On Vercel Serverless (4.5 MB body limit), an intelligent sample of up to 5,000 employee records will be extracted for sub-second cloud ML scoring.`);
   } else {
     fileSelEl.textContent=`Selected: ${f.name} (${sizeMB} MB)`;
@@ -772,7 +777,7 @@ async function prepareUploadFile(file){
           const maxRows=Math.min(5001,lines.length-1);
           const sampledCsv=lines.slice(0,maxRows).join('\n');
           const sampledBlob=new Blob([sampledCsv],{type:'text/csv'});
-          resolve(new File([sampledBlob],file.name,{type:'text/csv'}));
+          resolve({blob:sampledBlob,name:file.name,isSampled:true});
           return;
         }
       }catch(_){}
@@ -783,12 +788,18 @@ async function prepareUploadFile(file){
   });
 }
 analyseBtn.onclick=async()=>{
-  const file=uploadEl.files[0]; if(!file) return;
+  const file=currentFile||(uploadEl.files&&uploadEl.files[0]);
+  if(!file) return;
   analyseBtn.disabled=true; setStatus('info','Uploading and running ML analysis — this may take a moment…',true);
   $('#analysis-results').style.display='none';
   try{
     const uploadPayload=await prepareUploadFile(file);
-    const fd=new FormData(); fd.append('file',uploadPayload);
+    const fd=new FormData();
+    if(uploadPayload.blob){
+      fd.append('file',uploadPayload.blob,file.name);
+    } else {
+      fd.append('file',uploadPayload,file.name);
+    }
     const r=await fetch('/api/analyse-upload',{method:'POST',body:fd});
     if(!r.ok){
       let errDetail=`Server returned status ${r.status}`;
@@ -806,7 +817,7 @@ analyseBtn.onclick=async()=>{
     const d=await r.json();
     if(d.error){ setStatus('error',d.error); return; }
     const tot=(d.risk_distribution?.Low||0)+(d.risk_distribution?.Moderate||0)+(d.risk_distribution?.Elevated||0);
-    const notice=(uploadPayload!==file)?' (Representative cloud sample)':'';
+    const notice=(uploadPayload.isSampled)?' (Representative cloud sample)':'';
     setStatus('success',`Analysis complete — ${numFmt(tot)} employee records scored${notice}.`);
     renderResults(d);
   }catch(err){

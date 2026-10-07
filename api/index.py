@@ -418,12 +418,15 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
 
 @app.route("/", methods=["GET"])
 def index():
-    return send_from_directory(str(ROOT), "dashboard.html")
+    return send_from_directory(str(ROOT), "dashboard.html", mimetype="text/html; charset=utf-8")
 
 
 @app.route("/api/summary", methods=["GET"])
