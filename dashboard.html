@@ -906,15 +906,16 @@ async function prepareUploadFile(file){
   }
   return new Promise(resolve=>{
     const reader=new FileReader();
-    const chunk=file.slice(0,1.2*1024*1024);
+    const chunk=file.slice(0,1.5*1024*1024);
     reader.onload=e=>{
       try{
         const text=e.target.result;
         const lines=text.split(/\r?\n/);
         if(lines.length>2){
-          const maxRows=Math.min(5001,lines.length-1);
-          const sampledCsv=lines.slice(0,maxRows).join('\n');
-          const sampledBlob=new Blob([sampledCsv],{type:'text/csv'});
+          const validLines = lines.slice(0, lines.length - 1);
+          const maxRows = Math.min(5001, validLines.length);
+          const sampledCsv = validLines.slice(0, maxRows).join('\n');
+          const sampledBlob = new Blob([sampledCsv],{type:'text/csv'});
           resolve({blob:sampledBlob,name:file.name,isSampled:true});
           return;
         }
@@ -928,15 +929,15 @@ async function prepareUploadFile(file){
 analyseBtn.onclick=async()=>{
   const file=currentFile||(uploadEl.files&&uploadEl.files[0]);
   if(!file) return;
-  analyseBtn.disabled=true; setStatus('info','Uploading and running ML analysis — this may take a moment…',true);
-  $('#analysis-results').style.display='none';
+  analyseBtn.disabled=true;
+  setStatus('info','Uploading and running ML analysis — this may take a moment…',true);
   try{
     const uploadPayload=await prepareUploadFile(file);
     const fd=new FormData();
-    if(uploadPayload.blob){
+    if(uploadPayload && uploadPayload.blob){
       fd.append('file',uploadPayload.blob,file.name);
     } else {
-      fd.append('file',uploadPayload,file.name);
+      fd.append('file',file,file.name);
     }
     const r=await fetch('/api/analyse-upload',{method:'POST',body:fd});
     if(!r.ok){
@@ -955,7 +956,7 @@ analyseBtn.onclick=async()=>{
     const d=await r.json();
     if(d.error){ setStatus('error',d.error); return; }
     const tot=(d.risk_distribution?.Low||0)+(d.risk_distribution?.Moderate||0)+(d.risk_distribution?.Elevated||0);
-    const notice=(uploadPayload.isSampled)?' (Representative cloud sample)':'';
+    const notice=(uploadPayload && uploadPayload.isSampled)?' (Representative cloud sample)':'';
     setStatus('success',`Analysis complete — ${numFmt(tot)} employee records scored${notice}.`);
     renderResults(d);
   }catch(err){
@@ -1117,7 +1118,6 @@ $$('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>{
 
 // ── RENDER RESULTS ──
 function renderResults(d){
-  const sec=$('#analysis-results'); sec.style.display='block';
   const tot=(d.risk_distribution.Low||0)+(d.risk_distribution.Moderate||0)+(d.risk_distribution.Elevated||0);
   animateCount($('#res-employees'),tot,numFmt);
   $('#res-burnout').textContent=d.mean_burnout_score+'/10';
