@@ -150,9 +150,9 @@ body{font-family:'Inter',-apple-system,sans-serif;font-size:14px;background:var(
 
 /* ── BREAKDOWN ── */
 .breakdown-layout{display:grid;grid-template-columns:1.35fr 1fr;gap:0}
-.breakdown-chart{padding:18px 22px;border-right:1px solid var(--border);position:relative;overflow-y:auto;max-height:540px}
-.breakdown-chart-wrap{position:relative;width:100%;min-height:240px}
-.breakdown-table{padding:18px 20px;overflow-y:auto;max-height:540px}
+.breakdown-chart{padding:18px 22px;border-right:1px solid var(--border);position:relative;overflow-y:auto;max-height:580px}
+.breakdown-chart-wrap{position:relative;width:100%;min-height:260px}
+.breakdown-table{padding:18px 20px;overflow-y:auto;max-height:580px}
 
 
 
@@ -847,7 +847,7 @@ function renderBreakdown(tab){
   if(ctx&&items.length){
     const wrap=$('#breakdown-chart-wrap')||ctx.parentElement;
     if(wrap){
-      const targetH = Math.max(240, items.length <= 4 ? items.length * 56 + 85 : Math.min(520, items.length * 36 + 95));
+      const targetH = Math.max(260, items.length * 52 + 95);
       wrap.style.height=targetH+'px';
     }
     charts['breakdown']=new Chart(ctx,{
@@ -863,9 +863,9 @@ function renderBreakdown(tab){
             borderRadius:4,
             borderSkipped:false,
             xAxisID:'x',
-            maxBarThickness:15,
-            barPercentage:0.85,
-            categoryPercentage:0.80
+            maxBarThickness:13,
+            barPercentage:0.88,
+            categoryPercentage:0.68
           },
           {
             label:'Elevated Review Rate (%)',
@@ -875,9 +875,9 @@ function renderBreakdown(tab){
             borderRadius:4,
             borderSkipped:false,
             xAxisID:'x2',
-            maxBarThickness:15,
-            barPercentage:0.85,
-            categoryPercentage:0.80
+            maxBarThickness:13,
+            barPercentage:0.88,
+            categoryPercentage:0.68
           }
         ]
       },
