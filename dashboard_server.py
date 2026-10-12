@@ -161,11 +161,175 @@ class DashboardState:
         self.uploaded_employees: dict = {}
         self.employee_df: pd.DataFrame | None = None
         self.uploaded_raw_df: pd.DataFrame | None = None
+        self._cached_summary: dict | None = None
+
+    def compute_interventions_and_drivers(self, df_sample: pd.DataFrame, total_rows: int | None = None) -> tuple[list[dict], dict]:
+        if df_sample is None or df_sample.empty:
+            return [], {}
+        sample_size = min(len(df_sample), 5000)
+        sdf = df_sample.sample(sample_size, random_state=42).copy() if len(df_sample) > sample_size else df_sample.copy()
+        N = total_rows or len(df_sample)
+        defaults = self.default_features()
+        for col in FEATURES:
+            if col not in sdf.columns:
+                sdf[col] = defaults.get(col, 0)
+            else:
+                sdf[col] = sdf[col].fillna(defaults.get(col, 0))
+
+        try:
+            orig_eng = engineer_features(sdf)
+            orig_scores = np.clip(self.score_model.predict(orig_eng), 0, 10)
+            orig_mean = float(orig_scores.mean())
+            orig_elev_rate = float((orig_scores >= self.threshold).mean() * 100)
+        except Exception:
+            return [], {}
+
+        interventions = []
+        specs = [
+            {
+                "id": "overtime_cap",
+                "title": "Overtime Hours Guardrail",
+                "badge": "High Leverage",
+                "description": "Cap individual overtime at maximum 4 hours/week and prevent weekend spillover.",
+                "col": "overtime_hours",
+                "val": 4.0,
+                "action": "Cap overtime ≤ 4h/week",
+                "effort": "Low Effort",
+                "preset": {"sl-overtime": 4}
+            },
+            {
+                "id": "meeting_detox",
+                "title": "Meeting Detox (Focus Blocks)",
+                "badge": "Cultural Shift",
+                "description": "Cap daily meetings at maximum 3 per day; introduce dedicated no-meeting blocks.",
+                "col": "meetings_per_day",
+                "val": 3.0,
+                "action": "Cap meetings ≤ 3/day",
+                "effort": "Medium Effort",
+                "preset": {"sl-meetings": 3}
+            },
+            {
+                "id": "standard_workweek",
+                "title": "Workweek Workload Normalization",
+                "badge": "Policy Cap",
+                "description": "Limit total weekly workload to ≤ 42 hours across salaried departments.",
+                "col": "work_hours_per_week",
+                "val": 42.0,
+                "action": "Workweek ≤ 42h",
+                "effort": "Policy Shift",
+                "preset": {"sl-hours": 42}
+            },
+            {
+                "id": "combined_policy",
+                "title": "Comprehensive Wellbeing Policy",
+                "badge": "Maximum Impact",
+                "description": "Simultaneous implementation: 4h overtime guardrail combined with 3-meeting daily ceiling.",
+                "composite": True,
+                "action": "Overtime ≤ 4h + Meetings ≤ 3/day",
+                "effort": "Combined Policy",
+                "preset": {"sl-overtime": 4, "sl-meetings": 3}
+            }
+        ]
+
+        for spec in specs:
+            sim_df = sdf.copy()
+            if spec.get("composite"):
+                sim_df["overtime_hours"] = np.minimum(pd.to_numeric(sim_df["overtime_hours"], errors="coerce").fillna(0), 4.0)
+                sim_df["meetings_per_day"] = np.minimum(pd.to_numeric(sim_df["meetings_per_day"], errors="coerce").fillna(0), 3.0)
+            else:
+                col = spec["col"]
+                sim_df[col] = np.minimum(pd.to_numeric(sim_df[col], errors="coerce").fillna(defaults.get(col, 0)), spec["val"])
+
+            try:
+                sim_eng = engineer_features(sim_df)
+                sim_scores = np.clip(self.score_model.predict(sim_eng), 0, 10)
+                sim_mean = float(sim_scores.mean())
+                sim_elev_rate = float((sim_scores >= self.threshold).mean() * 100)
+                score_drop = round(max(0.01, orig_mean - sim_mean), 2)
+                rate_drop = round(max(0.1, orig_elev_rate - sim_elev_rate), 1)
+                protected = max(1, int(round(N * rate_drop / 100)))
+
+                interventions.append({
+                    "id": spec["id"],
+                    "title": spec["title"],
+                    "badge": spec["badge"],
+                    "description": spec["description"],
+                    "action": spec["action"],
+                    "effort": spec["effort"],
+                    "score_drop": score_drop,
+                    "sim_score": round(sim_mean, 2),
+                    "rate_drop": rate_drop,
+                    "sim_elev_rate": round(sim_elev_rate, 1),
+                    "protected_employees": protected,
+                    "preset": spec["preset"]
+                })
+            except Exception:
+                continue
+
+        role_drivers = {}
+        if "job_role" in sdf.columns:
+            low_cohort = sdf[orig_scores < 2.5]
+            if low_cohort.empty:
+                low_cohort = sdf
+
+            roles = sdf["job_role"].dropna().unique()
+            for r in roles:
+                role_str = str(r)
+                rdf = sdf[sdf["job_role"] == r]
+                if len(rdf) == 0:
+                    continue
+
+                diffs = []
+                if "overtime_hours" in sdf.columns:
+                    ot_role = pd.to_numeric(rdf["overtime_hours"], errors="coerce").mean()
+                    ot_low = pd.to_numeric(low_cohort["overtime_hours"], errors="coerce").mean()
+                    d = ot_role - ot_low
+                    if d > 0.3:
+                        diffs.append(("Overtime Load", f"+{d:.1f}h/wk", d / 3.0))
+
+                if "meetings_per_day" in sdf.columns:
+                    m_role = pd.to_numeric(rdf["meetings_per_day"], errors="coerce").mean()
+                    m_low = pd.to_numeric(low_cohort["meetings_per_day"], errors="coerce").mean()
+                    d = m_role - m_low
+                    if d > 0.3:
+                        diffs.append(("Meeting Density", f"+{d:.1f} mtgs/d", d / 2.0))
+
+                if "work_hours_per_week" in sdf.columns:
+                    h_role = pd.to_numeric(rdf["work_hours_per_week"], errors="coerce").mean()
+                    h_low = pd.to_numeric(low_cohort["work_hours_per_week"], errors="coerce").mean()
+                    d = h_role - h_low
+                    if d > 0.8:
+                        diffs.append(("Extended Hours", f"+{d:.1f}h/wk", d / 5.0))
+
+                if "deadlines_missed" in sdf.columns:
+                    dl_role = pd.to_numeric(rdf["deadlines_missed"], errors="coerce").mean()
+                    dl_low = pd.to_numeric(low_cohort["deadlines_missed"], errors="coerce").mean()
+                    d = dl_role - dl_low
+                    if d > 0.2:
+                        diffs.append(("Deadline Friction", f"+{d:.1f} missed", d / 1.0))
+
+                if "stress_level" in sdf.columns:
+                    s_role = pd.to_numeric(rdf["stress_level"], errors="coerce").mean()
+                    s_low = pd.to_numeric(low_cohort["stress_level"], errors="coerce").mean()
+                    d = s_role - s_low
+                    if d > 0.3:
+                        diffs.append(("Elevated Stress", f"+{d:.1f} pts", d / 2.0))
+
+                diffs.sort(key=lambda x: -x[2])
+                if diffs:
+                    role_drivers[role_str] = [{"name": d[0], "delta": d[1]} for d in diffs[:2]]
+                else:
+                    role_drivers[role_str] = [{"name": "Balanced Profile", "delta": "Low friction"}]
+
+        return interventions, role_drivers
 
     # ─── ORG SUMMARY ─────────────────────────────────────────────────────────
     def summary(self) -> dict:
+        if self._cached_summary is not None:
+            return self._cached_summary
         score = self.df["burnout_score"]
-        return {
+        interventions, role_drivers = self.compute_interventions_and_drivers(self.df, len(self.df))
+        self._cached_summary = {
             "employees": int(len(self.df)),
             "mean_burnout": round(float(score.mean()), 2),
             "elevated_rate": round(float((score >= self.threshold).mean() * 100), 1),
@@ -179,7 +343,10 @@ class DashboardState:
                 "Elevated (≥ 3.7)": int((score >= self.threshold).sum()),
             },
             "defaults": self.df[FEATURES].median(numeric_only=True).to_dict(),
+            "interventions": interventions,
+            "role_drivers": role_drivers,
         }
+        return self._cached_summary
 
     # ─── SCENARIO PREDICT ────────────────────────────────────────────────────
     def predict(self, payload: dict) -> dict:
@@ -423,6 +590,11 @@ class DashboardState:
         self.employee_df = pd.concat(emp_chunks, ignore_index=True) if emp_chunks else None
         self.uploaded_raw_df = pd.concat(raw_chunks, ignore_index=True) if raw_chunks else None
 
+        interventions, role_drivers = self.compute_interventions_and_drivers(self.uploaded_raw_df, rows)
+        role_summary = _summarize_groups(role_agg)
+        for r in role_summary:
+            r["drivers"] = role_drivers.get(r["name"], [])
+
         return {
             "detected_fields": sorted(present & set(FEATURES)),
             "optional_fields_not_supplied": sorted(OPTIONAL_WORKPLACE_FIELDS - present),
@@ -436,7 +608,9 @@ class DashboardState:
             "elevated_review_rate": round(bands_total["Elevated"] / rows * 100, 1),
             "mean_elevated_probability": round(prob_total / rows * 100, 1),
             "risk_distribution": bands_total,
-            "role_analysis": _summarize_groups(role_agg),
+            "role_analysis": role_summary,
+            "interventions": interventions,
+            "role_drivers": role_drivers,
             "location_analysis": _summarize_groups(loc_agg),
             "gender_analysis": _summarize_groups(gender_agg),
             "work_mode_analysis": _summarize_groups(mode_agg),
