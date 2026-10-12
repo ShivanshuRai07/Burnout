@@ -388,9 +388,8 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       <button class="nav-tab active" data-tab="sec-upload" onclick="switchView('sec-upload')">📁 File Analysis</button>
       <button class="nav-tab" data-tab="sec-analytics" onclick="switchView('sec-analytics')">📊 Risk &amp; Role Analytics</button>
       <button class="nav-tab" data-tab="sec-interventions" onclick="switchView('sec-interventions')">🛡 AI Interventions</button>
-      <button class="nav-tab" data-tab="sec-review" onclick="switchView('sec-review')">👤 Employee Review</button>
-      <button class="nav-tab" data-tab="sec-table" onclick="switchView('sec-table')" style="position:relative">
-        📋 Employee Table
+      <button class="nav-tab" data-tab="sec-employees" onclick="switchView('sec-employees')" style="position:relative">
+        👥 Employee Review &amp; Table
         <span class="nav-badge" id="table-badge">0</span>
       </button>
     </div>
@@ -487,7 +486,7 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       <div class="vb-actions">
         <button class="vb-btn" onclick="switchView('sec-analytics')">📊 View Risk &amp; Role Analytics →</button>
         <button class="vb-btn" onclick="switchView('sec-interventions')">🛡 View AI Policy Interventions →</button>
-        <button class="vb-btn" onclick="switchView('sec-table')">📋 View Employee Records Table →</button>
+        <button class="vb-btn" onclick="switchView('sec-employees')">👥 View Employee Review &amp; Table →</button>
       </div>
     </div>
   </section>
@@ -559,7 +558,7 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       <div class="vb-title"><span>🛡</span> Next Step: Explore Prescriptive AI Interventions:</div>
       <div class="vb-actions">
         <button class="vb-btn" onclick="switchView('sec-interventions')">🛡 View AI Policy Interventions &amp; Projected Headcount →</button>
-        <button class="vb-btn" onclick="switchView('sec-table')">📋 Browse Full Employee Records Table →</button>
+        <button class="vb-btn" onclick="switchView('sec-employees')">👥 Browse Employee Review &amp; Table →</button>
       </div>
     </div>
   </section>
@@ -591,15 +590,14 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       <div class="vb-title"><span>⚡</span> Test Individual Scenarios or Search Employees:</div>
       <div class="vb-actions">
         <button class="vb-btn" onclick="openSimModal()">⚡ Open Live Scenario Simulator</button>
-        <button class="vb-btn" onclick="switchView('sec-review')">👤 Search Individual Employee Profile →</button>
-        <button class="vb-btn" onclick="switchView('sec-table')">📋 View Employee Records Table →</button>
+        <button class="vb-btn" onclick="switchView('sec-employees')">👥 Review Employee Profiles &amp; Table →</button>
       </div>
     </div>
   </section>
 
-  <!-- ══════════════════════ 4. EMPLOYEE REVIEW ══════════════════════ -->
-  <section id="sec-review" class="view-pane">
-    <div class="section-title">Employee Review</div>
+  <!-- ══════════════════════ 4. EMPLOYEE REVIEW & RECORDS TABLE ══════════════════════ -->
+  <section id="sec-employees" class="view-pane">
+    <div class="section-title">Employee Review &amp; Records Directory</div>
     <div class="caution">
       <span class="ico">ℹ</span>
       <span>For supportive HR planning only. Do not use for performance reviews, pay decisions, or employment actions.</span>
@@ -608,13 +606,13 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
     <!-- Employee Search -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-header">
-        <div><h3>Employee Burnout Search</h3><p>Enter an Employee ID to retrieve predicted burnout score and risk assessment</p></div>
+        <div><h3>Employee Burnout Search</h3><p>Enter an Employee ID (or click an ID in the table below) to inspect predicted burnout score and workplace parameters</p></div>
         <span style="font-size:11px;padding:3px 9px;background:#f3f0ff;color:var(--purple);border:1px solid #d4c8f9;border-radius:3px;font-weight:600">ID Lookup</span>
       </div>
       <div class="search-bar">
         <div class="search-input-wrap">
           <span class="search-icon">🔍</span>
-          <input type="text" id="emp-search-input" placeholder="Enter Employee ID (e.g. EM1, tech_0)" autocomplete="off">
+          <input type="text" id="emp-search-input" placeholder="Enter Employee ID (e.g. EM1, tech_0, or click table row below)" autocomplete="off">
         </div>
         <button class="btn-search" id="emp-search-btn">Search Employee</button>
       </div>
@@ -627,21 +625,10 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       </div>
     </div>
 
-    <div class="view-banner">
-      <div class="vb-title"><span>📋</span> Deep Dive into All Employees:</div>
-      <div class="vb-actions">
-        <button class="vb-btn" onclick="switchView('sec-table')">📋 View Full Employee Records Table →</button>
-        <button class="vb-btn" onclick="switchView('sec-analytics')">📊 Back to Risk &amp; Role Analytics →</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ══════════════════════ 5. EMPLOYEE TABLE ══════════════════════ -->
-  <section id="sec-table" class="view-pane">
-    <div class="section-title">Employee Table</div>
-    <div class="card">
+    <!-- Full Employee Table -->
+    <div class="card" id="emp-table-card">
       <div class="card-header">
-        <div><h3>Full Employee Burnout Records</h3><p>Filterable, sortable, paginated view of all employees — upload a CSV file first</p></div>
+        <div><h3>Full Employee Burnout Records</h3><p>Filterable, sortable, paginated view of all employees — click any Employee ID to load profile above</p></div>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;color:var(--muted)" id="table-total-badge"></span>
           <button class="btn-export" id="export-csv-btn" disabled onclick="exportTableCSV()">⬇ Export CSV</button>
@@ -1436,7 +1423,7 @@ function renderTableRows(rows){
   const bandColor=b=>b==='Elevated'?'var(--red)':b==='Moderate'?'var(--amber)':'var(--green)';
   tbody.innerHTML=rows.map(r=>`
     <tr>
-      <td style="font-weight:600;color:var(--navy);font-family:'Courier New',monospace;font-size:11px">${r.id&&r.id!=='nan'?r.id:'—'}</td>
+      <td style="font-weight:600;font-family:'Courier New',monospace;font-size:11px">${r.id&&r.id!=='nan'?`<a href="javascript:void(0)" onclick="quickReviewEmp('${r.id}')" style="color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue)" title="Inspect #${r.id} in Employee Review">${r.id}</a>`:'—'}</td>
       <td>${r.role||'—'}</td>
       <td>${r.mode||'—'}</td>
       <td>${r.city||'—'}</td>
@@ -1478,6 +1465,7 @@ function exportTableCSV(){
 let currentView = 'sec-upload';
 
 function switchView(viewId){
+  if(viewId === 'sec-review' || viewId === 'sec-table') viewId = 'sec-employees';
   currentView = viewId;
   const isContinuous = document.body.classList.contains('continuous-view');
   
@@ -1511,7 +1499,21 @@ function toggleViewMode(){
 }
 
 function scrollToTable(){
-  switchView('sec-table');
+  switchView('sec-employees');
+  const el = document.getElementById('emp-table-card');
+  if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function quickReviewEmp(empId){
+  if(!empId || empId === 'nan' || empId === '—') return;
+  switchView('sec-employees');
+  const input = $('#emp-search-input');
+  if(input){
+    input.value = empId;
+    searchEmployee();
+    const reviewCard = input.closest('.card');
+    if(reviewCard) reviewCard.scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
 }
 </script>
 </body>
