@@ -150,9 +150,9 @@ body{font-family:'Inter',-apple-system,sans-serif;font-size:14px;background:var(
 
 /* ── BREAKDOWN ── */
 .breakdown-layout{display:grid;grid-template-columns:1.35fr 1fr;gap:0}
-.breakdown-chart{padding:12px 16px;border-right:1px solid var(--border);position:relative;overflow-y:auto;max-height:450px}
-.breakdown-chart-wrap{position:relative;width:100%;min-height:160px}
-.breakdown-table{padding:12px 16px;overflow-y:auto;max-height:450px}
+.breakdown-chart{padding:18px 22px;border-right:1px solid var(--border);position:relative;overflow-y:auto;max-height:540px}
+.breakdown-chart-wrap{position:relative;width:100%;min-height:240px}
+.breakdown-table{padding:18px 20px;overflow-y:auto;max-height:540px}
 
 
 
@@ -847,7 +847,7 @@ function renderBreakdown(tab){
   if(ctx&&items.length){
     const wrap=$('#breakdown-chart-wrap')||ctx.parentElement;
     if(wrap){
-      const targetH=Math.min(420, Math.max(160, items.length * 28 + 65));
+      const targetH = Math.max(240, items.length <= 4 ? items.length * 56 + 85 : Math.min(520, items.length * 36 + 95));
       wrap.style.height=targetH+'px';
     }
     charts['breakdown']=new Chart(ctx,{
@@ -860,24 +860,24 @@ function renderBreakdown(tab){
             data:items.map(i=>i.mean_score),
             backgroundColor:'#1a6fc4',
             hoverBackgroundColor:'#2781dc',
-            borderRadius:3,
+            borderRadius:4,
             borderSkipped:false,
             xAxisID:'x',
-            maxBarThickness:12,
+            maxBarThickness:15,
             barPercentage:0.85,
-            categoryPercentage:0.82
+            categoryPercentage:0.80
           },
           {
             label:'Elevated Review Rate (%)',
             data:items.map(i=>i.elevated_rate),
             backgroundColor:'#e05624',
             hoverBackgroundColor:'#f06a38',
-            borderRadius:3,
+            borderRadius:4,
             borderSkipped:false,
             xAxisID:'x2',
-            maxBarThickness:12,
+            maxBarThickness:15,
             barPercentage:0.85,
-            categoryPercentage:0.82
+            categoryPercentage:0.80
           }
         ]
       },
@@ -889,21 +889,21 @@ function renderBreakdown(tab){
           legend:{
             position:'bottom',
             labels:{
-              padding:8,
+              padding:12,
               usePointStyle:true,
               pointStyle:'rectRounded',
-              boxWidth:6,
-              boxHeight:6,
-              font:{size:10,weight:'600',family:"'Inter',sans-serif"},
+              boxWidth:8,
+              boxHeight:8,
+              font:{size:11,weight:'600',family:"'Inter',sans-serif"},
               color:'#0f2d56'
             }
           },
           tooltip:{
             backgroundColor:'rgba(15, 45, 86, 0.95)',
-            padding:8,
+            padding:10,
             cornerRadius:4,
             titleFont:{size:11,weight:'700',family:"'Inter',sans-serif"},
-            bodyFont:{size:10,family:"'Inter',sans-serif"},
+            bodyFont:{size:11,family:"'Inter',sans-serif"},
             callbacks:{
               label:(c)=>{
                 const isElevated=c.dataset.xAxisID==='x2';
@@ -922,9 +922,9 @@ function renderBreakdown(tab){
             grid:{display:false},
             ticks:{
               autoSkip:false,
-              font:{weight:'600',size:11,family:"'Inter',sans-serif"},
+              font:{weight:'600',size:12,family:"'Inter',sans-serif"},
               color:'#0f2d56',
-              padding:4
+              padding:8
             }
           },
           x:{
@@ -936,12 +936,13 @@ function renderBreakdown(tab){
             title:{
               display:true,
               text:'Avg Burnout Score (0–10)',
-              font:{size:10,weight:'600',family:"'Inter',sans-serif"},
-              color:'#1a6fc4'
+              font:{size:11,weight:'600',family:"'Inter',sans-serif"},
+              color:'#1a6fc4',
+              padding:{top:6}
             },
             ticks:{
               stepSize:2,
-              font:{size:9,family:"'Inter',sans-serif"},
+              font:{size:10,family:"'Inter',sans-serif"},
               color:'#4a5c6d'
             }
           },
@@ -954,13 +955,14 @@ function renderBreakdown(tab){
             title:{
               display:true,
               text:'Elevated Review Rate (%)',
-              font:{size:10,weight:'600',family:"'Inter',sans-serif"},
-              color:'#e05624'
+              font:{size:11,weight:'600',family:"'Inter',sans-serif"},
+              color:'#e05624',
+              padding:{bottom:6}
             },
             ticks:{
               stepSize:20,
               callback:v=>v+'%',
-              font:{size:9,family:"'Inter',sans-serif"},
+              font:{size:10,family:"'Inter',sans-serif"},
               color:'#e05624'
             }
           }
