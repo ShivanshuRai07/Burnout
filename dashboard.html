@@ -48,18 +48,30 @@ body{font-family:'Inter',-apple-system,sans-serif;font-size:14px;background:var(
 .brand-icon{width:30px;height:30px;background:var(--blue-light);border-radius:4px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff}
 .brand-name{font-size:14px;font-weight:600;color:#fff;letter-spacing:-.2px}
 .brand-div{width:1px;height:20px;background:rgba(255,255,255,.2)}
-.nav-links{display:flex;align-items:center;gap:2px;flex:1}
-.nav-links a{display:flex;align-items:center;gap:6px;padding:0 14px;height:56px;color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;font-weight:500;border-bottom:3px solid transparent;transition:color .15s,border-color .15s;position:relative}
-.nav-links a:hover{color:#fff}
-.nav-links a.active{color:#fff;border-bottom-color:#5eabf0}
+.nav-links{display:flex;align-items:center;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a, .nav-tab{display:flex;align-items:center;gap:6px;padding:0 14px;height:56px;color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;font-weight:500;border:none;background:transparent;border-bottom:3px solid transparent;transition:color .15s,border-color .15s,background .15s;position:relative;cursor:pointer;font-family:inherit;white-space:nowrap}
+.nav-links a:hover, .nav-tab:hover{color:#fff;background:rgba(255,255,255,.05)}
+.nav-links a.active, .nav-tab.active{color:#fff;border-bottom-color:#5eabf0;font-weight:600;background:rgba(255,255,255,.03)}
 .nav-badge{position:absolute;top:12px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#e74c3c;color:#fff;font-size:9px;font-weight:700;display:none;place-items:center;line-height:16px;text-align:center}
 .nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.view-mode-toggle{display:flex;align-items:center;gap:5px;padding:5px 11px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:20px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s}
+.view-mode-toggle:hover{background:rgba(255,255,255,.2)}
 .server-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(255,255,255,.1);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.15)}
 .server-pill .dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80;animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
 
-/* ── LAYOUT ── */
+/* ── LAYOUT & VIEW PANES ── */
 .page{max-width:1420px;margin:0 auto;padding:16px 20px 40px}
+.view-pane{display:none;animation:fadeUp .22s ease}
+.view-pane.active{display:block}
+body.continuous-view .view-pane{display:block !important;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+body.continuous-view .view-pane:last-child{border-bottom:none}
+.view-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius);margin-top:14px;font-size:12px;color:var(--text-2);flex-wrap:wrap}
+.view-banner .vb-title{font-weight:600;color:var(--navy);display:flex;align-items:center;gap:6px}
+.view-banner .vb-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vb-btn{padding:5px 11px;font-size:11px;font-weight:600;border-radius:3px;border:1px solid var(--border);background:#fff;color:var(--blue);cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+.vb-btn:hover{background:var(--blue-pale);border-color:#bcd5f0}
 .page-header{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm);display:flex;justify-content:space-between;align-items:center;gap:12px}
 .page-header-left h1{font-size:18px;font-weight:700;color:var(--navy);letter-spacing:-.3px}
 .page-header-left p{font-size:12px;color:var(--text-2);margin-top:2px}
@@ -367,20 +379,25 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
 <!-- ═══ TOP NAVIGATION ═══ -->
 <nav class="topnav">
   <div class="topnav-inner">
-    <a class="brand" href="#overview">
+    <a class="brand" href="javascript:void(0)" onclick="switchView('sec-upload')">
       <div class="brand-icon">W</div>
       <div class="brand-div"></div>
       <span class="brand-name">Workforce Analytics</span>
     </a>
-    <div class="nav-links">
-      <a href="#file-analysis"  id="nav-upload"  class="active">File Analysis</a>
-      <a href="#employee-review" id="nav-review">Employee Review</a>
-      <a href="#employee-table-section" id="nav-table" style="position:relative">
-        Employee Table
+    <div class="nav-links" id="main-nav-links">
+      <button class="nav-tab active" data-tab="sec-upload" onclick="switchView('sec-upload')">📁 File Analysis</button>
+      <button class="nav-tab" data-tab="sec-analytics" onclick="switchView('sec-analytics')">📊 Risk &amp; Role Analytics</button>
+      <button class="nav-tab" data-tab="sec-interventions" onclick="switchView('sec-interventions')">🛡 AI Interventions</button>
+      <button class="nav-tab" data-tab="sec-review" onclick="switchView('sec-review')">👤 Employee Review</button>
+      <button class="nav-tab" data-tab="sec-table" onclick="switchView('sec-table')" style="position:relative">
+        📋 Employee Table
         <span class="nav-badge" id="table-badge">0</span>
-      </a>
+      </button>
     </div>
     <div class="nav-right">
+      <button class="view-mode-toggle" id="view-mode-btn" onclick="toggleViewMode()" title="Toggle between Tabbed Views (no scrolling) and Continuous Full Page View">
+        <span id="view-mode-icon">📑</span> <span id="view-mode-lbl">Tabs</span>
+      </button>
       <button onclick="openSimModal()" style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s">
         <span style="color:#f59e0b">⚡</span> Simulator
       </button>
@@ -408,8 +425,8 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
   </div>
 
 
-  <!-- ══════════════════════ FILE ANALYSIS ══════════════════════ -->
-  <section id="file-analysis" class="section">
+  <!-- ══════════════════════ 1. FILE ANALYSIS & UPLOAD ══════════════════════ -->
+  <section id="sec-upload" class="view-pane active">
     <div class="section-title">Company File Analysis</div>
 
     <div class="card">
@@ -453,106 +470,135 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       </div>
     </div>
 
-    <!-- ── RESULTS ── -->
-    <div id="analysis-results" class="results-section" style="display:none">
-      <div class="section-title" style="margin-top:24px">Analysis Results</div>
-
-      <div class="res-kpi">
-        <div class="stat-box"><div class="stat-label">Employees Scored</div><div class="stat-val" id="res-employees">—</div><div class="stat-sub">Records processed</div></div>
-        <div class="stat-box"><div class="stat-label">Avg. Burnout Score</div><div class="stat-val blue" id="res-burnout">—</div><div class="stat-sub">0–10 scale</div></div>
-        <div class="stat-box"><div class="stat-label">Elevated Review Rate</div><div class="stat-val red" id="res-elevated">—</div><div class="stat-sub">Above threshold</div></div>
-        <div class="stat-box"><div class="stat-label">Avg. Elevated Probability</div><div class="stat-val amber" id="res-probability">—</div><div class="stat-sub">Model confidence</div></div>
+    <!-- Data coverage -->
+    <div class="card" id="coverage-card" style="margin-top:14px">
+      <div class="card-header" style="padding:8px 14px">
+        <div><h3 style="font-size:12px">Data Coverage</h3><p style="font-size:11px">Fields detected · Green = present, Amber = model default used</p></div>
+        <span class="stat-val" id="res-completeness" style="font-size:12px">—</span>
       </div>
-
-      <!-- Data coverage -->
-      <div class="card" style="margin-bottom:12px">
-        <div class="card-header" style="padding:8px 14px">
-          <div><h3 style="font-size:12px">Data Coverage</h3><p style="font-size:11px">Fields detected · Green = present, Amber = model default used</p></div>
-          <span class="stat-val" id="res-completeness" style="font-size:12px">—</span>
-        </div>
-        <div class="card-body" style="padding:10px 14px">
-          <div class="field-pills" id="res-fields" style="margin-top:0"></div>
-          <div style="margin-top:6px" id="table-notice"></div>
-        </div>
+      <div class="card-body" style="padding:10px 14px">
+        <div class="field-pills" id="res-fields" style="margin-top:0"></div>
+        <div style="margin-top:6px" id="table-notice"></div>
       </div>
+    </div>
 
-      <!-- Risk + Roles row -->
-      <div class="g2" style="margin-bottom:12px">
-        <div class="card">
-          <div class="card-header"><div><h3>Risk Band Distribution</h3><p>Employee count per predicted risk band</p></div></div>
-          <div class="card-body" style="padding:12px 14px">
-            <div class="band-strip" id="res-band-cards" style="margin-bottom:8px"></div>
-            <div class="chart-wrap" style="height:200px"><canvas id="chart-res-risk"></canvas></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><div><h3>Burnout Score by Role</h3><p>Roles ranked by average predicted burnout</p></div></div>
-          <div class="card-body" style="padding:12px 14px">
-            <div class="chart-wrap" style="height:270px"><canvas id="chart-res-roles"></canvas></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Role table -->
-      <div class="card" style="margin-bottom:12px">
-        <div class="card-header"><div><h3>Elevated Review Rate by Role</h3><p>% of employees flagged for elevated risk per role with primary risk drivers</p></div></div>
-        <div class="card-body" style="padding:0;max-height:260px;overflow-y:auto">
-          <table class="data-table">
-            <thead><tr><th>Job Role</th><th>Employees</th><th>Avg. Score</th><th>Elevated Rate</th><th>Primary Risk Drivers (vs Low-Risk Cohort)</th><th>Risk Level</th></tr></thead>
-            <tbody id="res-role-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Categorical breakdowns (tabbed) -->
-      <div class="card" id="breakdown-panel" style="margin-bottom:16px">
-        <div class="card-header"><div><h3>Demographic &amp; Workload Risk Breakdowns</h3><p>Switch categories to explore burnout patterns</p></div></div>
-        <div class="tab-bar" id="breakdown-tabs">
-          <button class="tab-btn active" data-tab="work_mode"  id="tab-work_mode">Work Mode</button>
-          <button class="tab-btn"         data-tab="duration"   id="tab-duration">Work Duration</button>
-          <button class="tab-btn"         data-tab="gender"     id="tab-gender"   disabled>Gender</button>
-          <button class="tab-btn"         data-tab="location"   id="tab-location" disabled>Geography</button>
-        </div>
-        <div class="breakdown-layout">
-          <div class="breakdown-chart">
-            <div class="breakdown-chart-wrap" id="breakdown-chart-wrap">
-              <canvas id="chart-breakdown"></canvas>
-            </div>
-          </div>
-          <div class="breakdown-table">
-            <table class="data-table">
-              <thead><tr><th id="breakdown-col-name">Category</th><th>Employees</th><th>Avg. Score</th><th>Elevated %</th><th>Risk</th></tr></thead>
-              <tbody id="breakdown-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Prescriptive Interventions -->
-      <div class="card" id="interventions-panel" style="margin-bottom:14px;display:none">
-        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <h3>AI Policy Interventions &amp; Projected Headcount Impact</h3>
-            <p>Counterfactual simulations run through trained ML models to quantify burnout drop &amp; protected headcount</p>
-          </div>
-          <span style="font-size:11px;padding:3px 9px;background:var(--green-pale);color:var(--green);border:1px solid #c0e5cf;border-radius:3px;font-weight:600">Prescriptive ML</span>
-        </div>
-        <div class="card-body" style="padding:14px 16px">
-          <div class="intervention-grid" id="intervention-cards"></div>
-        </div>
-      </div>
-
-      <div class="caution">
-        <span class="ico">⚠</span>
-        <span><strong>Decision-support only.</strong> This analysis is generated by a machine learning model for supportive workforce planning. It must not be used for adverse employment decisions.</span>
+    <div class="view-banner">
+      <div class="vb-title"><span>💡</span> Explore Workforce Findings Directly:</div>
+      <div class="vb-actions">
+        <button class="vb-btn" onclick="switchView('sec-analytics')">📊 View Risk &amp; Role Analytics →</button>
+        <button class="vb-btn" onclick="switchView('sec-interventions')">🛡 View AI Policy Interventions →</button>
+        <button class="vb-btn" onclick="switchView('sec-table')">📋 View Employee Records Table →</button>
       </div>
     </div>
   </section>
 
-  <hr class="sep">
+  <!-- ══════════════════════ 2. RISK & ROLE ANALYTICS ══════════════════════ -->
+  <section id="sec-analytics" class="view-pane">
+    <div class="section-title">Workforce Risk &amp; Role Analytics</div>
 
-  <!-- ══════════════════════ EMPLOYEE REVIEW ══════════════════════ -->
-  <section id="employee-review" class="section">
+    <div class="res-kpi">
+      <div class="stat-box"><div class="stat-label">Employees Scored</div><div class="stat-val" id="res-employees">—</div><div class="stat-sub">Records processed</div></div>
+      <div class="stat-box"><div class="stat-label">Avg. Burnout Score</div><div class="stat-val blue" id="res-burnout">—</div><div class="stat-sub">0–10 scale</div></div>
+      <div class="stat-box"><div class="stat-label">Elevated Review Rate</div><div class="stat-val red" id="res-elevated">—</div><div class="stat-sub">Above threshold</div></div>
+      <div class="stat-box"><div class="stat-label">Avg. Elevated Probability</div><div class="stat-val amber" id="res-probability">—</div><div class="stat-sub">Model confidence</div></div>
+    </div>
+
+    <!-- Risk + Roles row -->
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card">
+        <div class="card-header"><div><h3>Risk Band Distribution</h3><p>Employee count per predicted risk band</p></div></div>
+        <div class="card-body" style="padding:12px 14px">
+          <div class="band-strip" id="res-band-cards" style="margin-bottom:8px"></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chart-res-risk"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div><h3>Burnout Score by Role</h3><p>Roles ranked by average predicted burnout</p></div></div>
+        <div class="card-body" style="padding:12px 14px">
+          <div class="chart-wrap" style="height:270px"><canvas id="chart-res-roles"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role table -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header"><div><h3>Elevated Review Rate by Role</h3><p>% of employees flagged for elevated risk per role with primary risk drivers</p></div></div>
+      <div class="card-body" style="padding:0;max-height:260px;overflow-y:auto">
+        <table class="data-table">
+          <thead><tr><th>Job Role</th><th>Employees</th><th>Avg. Score</th><th>Elevated Rate</th><th>Primary Risk Drivers (vs Low-Risk Cohort)</th><th>Risk Level</th></tr></thead>
+          <tbody id="res-role-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Categorical breakdowns (tabbed) -->
+    <div class="card" id="breakdown-panel" style="margin-bottom:14px">
+      <div class="card-header"><div><h3>Demographic &amp; Workload Risk Breakdowns</h3><p>Switch categories to explore burnout patterns</p></div></div>
+      <div class="tab-bar" id="breakdown-tabs">
+        <button class="tab-btn active" data-tab="work_mode"  id="tab-work_mode">Work Mode</button>
+        <button class="tab-btn"         data-tab="duration"   id="tab-duration">Work Duration</button>
+        <button class="tab-btn"         data-tab="gender"     id="tab-gender"   disabled>Gender</button>
+        <button class="tab-btn"         data-tab="location"   id="tab-location" disabled>Geography</button>
+      </div>
+      <div class="breakdown-layout">
+        <div class="breakdown-chart">
+          <div class="breakdown-chart-wrap" id="breakdown-chart-wrap">
+            <canvas id="chart-breakdown"></canvas>
+          </div>
+        </div>
+        <div class="breakdown-table">
+          <table class="data-table">
+            <thead><tr><th id="breakdown-col-name">Category</th><th>Employees</th><th>Avg. Score</th><th>Elevated %</th><th>Risk</th></tr></thead>
+            <tbody id="breakdown-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="view-banner">
+      <div class="vb-title"><span>🛡</span> Next Step: Explore Prescriptive AI Interventions:</div>
+      <div class="vb-actions">
+        <button class="vb-btn" onclick="switchView('sec-interventions')">🛡 View AI Policy Interventions &amp; Projected Headcount →</button>
+        <button class="vb-btn" onclick="switchView('sec-table')">📋 Browse Full Employee Records Table →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ 3. AI POLICY INTERVENTIONS ══════════════════════ -->
+  <section id="sec-interventions" class="view-pane">
+    <div class="section-title">AI Prescriptive Policy Interventions</div>
+
+    <!-- Prescriptive Interventions -->
+    <div class="card" id="interventions-panel" style="margin-bottom:14px">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3>AI Policy Interventions &amp; Projected Headcount Impact</h3>
+          <p>Counterfactual simulations run through trained ML models to quantify burnout drop &amp; protected headcount</p>
+        </div>
+        <span style="font-size:11px;padding:3px 9px;background:var(--green-pale);color:var(--green);border:1px solid #c0e5cf;border-radius:3px;font-weight:600">Prescriptive ML</span>
+      </div>
+      <div class="card-body" style="padding:14px 16px">
+        <div class="intervention-grid" id="intervention-cards"></div>
+      </div>
+    </div>
+
+    <div class="caution">
+      <span class="ico">⚠</span>
+      <span><strong>Decision-support only.</strong> This analysis is generated by a machine learning model for supportive workforce planning. It must not be used for adverse employment decisions.</span>
+    </div>
+
+    <div class="view-banner">
+      <div class="vb-title"><span>⚡</span> Test Individual Scenarios or Search Employees:</div>
+      <div class="vb-actions">
+        <button class="vb-btn" onclick="openSimModal()">⚡ Open Live Scenario Simulator</button>
+        <button class="vb-btn" onclick="switchView('sec-review')">👤 Search Individual Employee Profile →</button>
+        <button class="vb-btn" onclick="switchView('sec-table')">📋 View Employee Records Table →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ 4. EMPLOYEE REVIEW ══════════════════════ -->
+  <section id="sec-review" class="view-pane">
     <div class="section-title">Employee Review</div>
     <div class="caution">
       <span class="ico">ℹ</span>
@@ -580,12 +626,18 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
         <div class="emp-profile" id="emp-profile"></div>
       </div>
     </div>
+
+    <div class="view-banner">
+      <div class="vb-title"><span>📋</span> Deep Dive into All Employees:</div>
+      <div class="vb-actions">
+        <button class="vb-btn" onclick="switchView('sec-table')">📋 View Full Employee Records Table →</button>
+        <button class="vb-btn" onclick="switchView('sec-analytics')">📊 Back to Risk &amp; Role Analytics →</button>
+      </div>
+    </div>
   </section>
 
-  <hr class="sep">
-
-  <!-- ══════════════════════ EMPLOYEE TABLE ══════════════════════ -->
-  <section id="employee-table-section" class="section">
+  <!-- ══════════════════════ 5. EMPLOYEE TABLE ══════════════════════ -->
+  <section id="sec-table" class="view-pane">
     <div class="section-title">Employee Table</div>
     <div class="card">
       <div class="card-header">
@@ -653,6 +705,15 @@ select:focus{outline:2px solid var(--blue);outline-offset:-1px}
             </select>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="view-banner">
+      <div class="vb-title"><span>📁</span> Switch to Another Section:</div>
+      <div class="vb-actions">
+        <button class="vb-btn" onclick="switchView('sec-upload')">📁 File Analysis &amp; Upload →</button>
+        <button class="vb-btn" onclick="switchView('sec-analytics')">📊 Risk &amp; Role Analytics →</button>
+        <button class="vb-btn" onclick="switchView('sec-interventions')">🛡 AI Policy Interventions →</button>
       </div>
     </div>
   </section>
@@ -761,6 +822,44 @@ fetch('/api/summary').then(r=>r.json()).then(d=>{
         $(`#${oid}`).textContent=isFloat?parseFloat(d.defaults[key]).toFixed(1):d.defaults[key];
       }
     });
+  }
+  if(d.interventions && d.interventions.length){
+    const intCardsEl = $('#intervention-cards');
+    if (intCardsEl) {
+      intCardsEl.innerHTML = d.interventions.map(it => `
+        <div class="intervention-card">
+          <div>
+            <div class="int-header">
+              <span class="int-title">${it.title}</span>
+              <span class="int-badge">${it.badge}</span>
+            </div>
+            <div class="int-desc">${it.description}</div>
+          </div>
+          <div>
+            <div class="int-metrics">
+              <div class="int-met-box">
+                <div class="int-lbl">Score Drop</div>
+                <div class="int-val green">-${it.score_drop} pts</div>
+              </div>
+              <div class="int-met-box">
+                <div class="int-lbl">Risk Rate Drop</div>
+                <div class="int-val green">-${it.rate_drop}%</div>
+              </div>
+            </div>
+            <div class="int-protected">
+              <span>🛡</span> <strong>${numFmt(it.protected_employees)}</strong> employees protected
+            </div>
+            <button class="int-btn" onclick='applyInterventionPreset(${JSON.stringify(it.preset)})'>Test Policy in Simulator ⚡</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+  if(d.bands && d.employees){
+    renderBandCards('#res-band-cards', d.bands, d.employees);
+    $('#res-employees').textContent = numFmt(d.employees);
+    $('#res-burnout').textContent = d.mean_burnout + '/10';
+    $('#res-elevated').textContent = d.elevated_rate + '%';
   }
 }).catch(()=>{
   const s=$('#server-status');
@@ -1110,7 +1209,7 @@ function renderResults(d){
   $('#tab-gender').disabled=!d.has_gender; $('#tab-location').disabled=!d.has_location;
   $$('.tab-btn').forEach(b=>b.classList.remove('active'));
   $('#tab-work_mode').classList.add('active'); renderBreakdown('work_mode');
-  sec.scrollIntoView({behavior:'smooth',block:'start'});
+  switchView('sec-analytics');
 }
 
 // ── INTERVENTION PRESET SIMULATOR INTEGRATION ──
@@ -1375,14 +1474,45 @@ function exportTableCSV(){
   window.location.href='/api/employee-table?'+p;
 }
 
-// ── SCROLL SPY ──
-const secMap={'file-analysis':'#nav-upload','employee-review':'#nav-review','employee-table-section':'#nav-table'};
-Object.keys(secMap).forEach(id=>{
-  const el=$(`#${id}`); if(!el) return;
-  new IntersectionObserver(entries=>{
-    if(entries[0].isIntersecting){ $$('.nav-links a').forEach(a=>a.classList.remove('active')); const lnk=$(secMap[id]); if(lnk) lnk.classList.add('active'); }
-  },{threshold:0.2}).observe(el);
-});
+// ── VIEW SWITCHER (SIDEWAYS TABBED NAVIGATION) ──
+let currentView = 'sec-upload';
+
+function switchView(viewId){
+  currentView = viewId;
+  const isContinuous = document.body.classList.contains('continuous-view');
+  
+  $$('.nav-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === viewId);
+  });
+  
+  if(!isContinuous){
+    $$('.view-pane').forEach(p => {
+      p.classList.toggle('active', p.id === viewId);
+    });
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  } else {
+    const el = document.getElementById(viewId);
+    if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
+}
+
+function toggleViewMode(){
+  const isCont = document.body.classList.toggle('continuous-view');
+  const lbl = $('#view-mode-lbl'), ico = $('#view-mode-icon');
+  if(isCont){
+    if(lbl) lbl.textContent = 'Continuous';
+    if(ico) ico.textContent = '📜';
+    $$('.view-pane').forEach(p => p.classList.add('active'));
+  } else {
+    if(lbl) lbl.textContent = 'Tabs';
+    if(ico) ico.textContent = '📑';
+    switchView(currentView);
+  }
+}
+
+function scrollToTable(){
+  switchView('sec-table');
+}
 </script>
 </body>
 </html>
